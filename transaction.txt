@@ -1,0 +1,86 @@
+1.一些关键的类
+TransactionDB --rocksdb
+Transaction		--rocksdb
+
+一种是 Rdb_writebatch_impl 另一种 是 Rdb_transaction_impl
+
+TransactionLockMgr
+
+
+2.【Transaction::GetForUpdate】
+
+			|...
+			|// 事务txn读取abc并独占该key，确保不被外部事务再修改
+			|s = txn->GetForUpdate(read_options, “abc”, &value);
+			|assert(s.ok());
+			|
+			|// 通过TransactionDB::Put接口在事务外写abc
+			|// 不会成功
+			|s = txn_db->Put(write_options, “abc”, “value0”);
+			|
+			|s = txn->Commit();
+			|assert(s.ok());
+			|...
+			|有时候在事务中需要对某一个key进行先读后写，此时则不能在写时才进行该key的独占及冲突检测操作，所以使用GetForUpdate接口读取该key并进行独占
+
+
+
+3.【Transaction::SetSnapshot】
+
+			|txn = txn_db->BeginTransaction(write_options);
+			|// 设置事务txn使用的snapshot为当前全局Sequence Number
+			|txn->SetSnapshot();
+			|
+			|// 使用TransactionDB::Put接口在事务外部写abc
+			|// 此时全局Sequence Number会加1
+			|db->Put(write_options, “key1”, “value0”);
+			|assert(s.ok());
+			|
+			|// 事务txn写入abc
+			|s = txn->Put(“abc”, “value1”);
+			|s = txn->Commit();
+			|// 这里会失败，因为在事务设置了snapshot之后，事务后来写的key
+			|// 在事务外部有过其他写操作，所以这里不会成功
+			|// Pessimistic会在Put时失败，Optimistic会在Commit时失败
+			|前面说过，TransactionDB在事务中需要写入某个key时才对其进行独占或冲突检测，有时希望在事务一开始就对其之后所有要写入的所有key进行独占，
+			|此时可以通过SetSnapshot来实现，设置了Snapshot后，外部一旦对事务中将要进行写操作key做过修改，
+			|则该事务最终会失败（失败点取决于是Pessimistic还是Optimistic，Pessimistic因为在Put时就进行冲突检测，
+			|所以Put时就失败，而Optimistic则会在Commit是检测到冲突，失败）  
+
+4.【Transaction & TransactionDB 基本用法 】
+			|Options options;
+			|TransactionDBOptions txn_db_options;
+			|options.create_if_missing = true;
+			|TransactionDB* txn_db;
+			|
+			|// 打开DB(默认Pessimistic)
+			|Status s = TransactionDB::Open(options, txn_db_options, kDBPath, &txn_db);
+			|assert(s.ok());
+			|
+			|// 创建一个事务
+			|Transaction* txn = txn_db->BeginTransaction(write_options);
+			|assert(txn);
+			|
+			|// 事务txn读取一个key
+			|s = txn->Get(read_options, "abc", &value);
+			|assert(s.IsNotFound());
+			|
+			|// 事务txn写一个key
+			|s = txn->Put("abc", "def");
+			|assert(s.ok());
+			|
+			|// 通过TransactionDB::Get在事务外读取一个key
+			|s = txn_db->Get(read_options, "abc", &value);
+			|
+			|// 通过TrasactionDB::Put在事务外写一个key
+			|// 这里并不会有影响，因为写的不是"abc"，不冲突
+			|// 如果是"abc"的话
+			|// 则Put会一直卡住直到超时或等待事务Commit(本例中会超时)
+			|s = txn_db->Put(write_options, "xyz", "zzz");
+			|
+			|s = txn->Commit();
+			|assert(s.ok());
+			|// 析构事务
+			|delete txn;
+			|delete txn_db;
+

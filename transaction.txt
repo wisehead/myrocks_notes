@@ -84,3 +84,23 @@ TransactionLockMgr
 			|delete txn;
 			|delete txn_db;
 
+
+5.RocksDB XA
+		|新版的 RocksDB 已经支持了 XA & 2PC。请参考：https://github.com/facebook/rocksdb/wiki/Two-Phase-Commit-Implementation
+		|
+		|实现:
+		|之前，RocksDB 的 WriteBatch 操作的构成如下：
+		|
+		|Sequence(0);NumRecords(3);Put(a,1);Merge(a,1);Delete(a);
+		|引入 XA 后，新增了四个操作：
+		|
+		|Prepare(xid)
+		|EndPrepare()
+		|Commit(xid)
+		|Rollback(xid)
+		|支持 XA 后，分布式事务的写操作如下：
+		|
+		|Sequence(0);NumRecords(6);Prepare(foo);Put(a,b);Put(x,y);EndPrepare();Put(j,k);Commit(foo);
+		|Prepare 与 EndPrepare 相当于一对括号，将 ID 为 ‘foo’ 的交易括起来，foo 就是 xid。
+		|
+		|Commit 与 Rollback用来标识 事务 xid 的最终状态。

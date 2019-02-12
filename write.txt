@@ -1,4 +1,16 @@
-1.insert流程
+1.写入流程概要流程：
+
+写入流程可以分为以下三步：
+
+将解析后的记录( key-value )写入到 WriteBatch
+将WAL日志写入log文件
+将WriteBatch中的内容写到memtable中，事务完成
+其中，2、3 两步在 commit 阶段完成。
+
+在 MyRocks 中，复用了 MySQL 的主从同步流程，因此，在开启 binlog 的情况下，还需要写入 binlog。
+
+
+2.insert流程
 mysql_execute_command
 --mysql_insert
 ----write_record

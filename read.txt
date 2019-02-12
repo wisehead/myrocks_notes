@@ -1,4 +1,16 @@
-1.read流程图
+1.读流程概要描述：
+
+【Read 流程】如下：
+
+在 MemTable 中查找，无法命中转到下一流程；
+在 immutable memtable 中查找，查找不中转到下一流程；
+在第0层SSTable中查找，无法命中转到下一流程；
+对于L0 的文件，RocksDB 采用遍历的方法查找，所以为了查找效率 RocksDB 会控制 L0 的文件个数。
+在剩余SSTable中查找。
+对于 L1 层以及 L1 层以上层级的文件，每个 SSTable 没有交叠，即 Key 没有重复，可以使用二分查找快速找到 key 所在的 Level 以及 SST。
+
+
+2.read流程图
 
 mysql_execute_command
 --execute_sqlcom_select

@@ -1,0 +1,33 @@
+1.flush 触发机制， 构造 flush 任务
+DBImpl::FlushMemTable//是否需要flush
+--SwitchMemtable//开启新的memtable
+--SchedulePendingFlush//memtable是否已经flush
+----AddToFlushQueue//将immutable memtable 加入任务队列
+--MaybeScheduleFlushOrCompaction//异步执行任务
+--WaitForFlushMemTable//等待flush完成
+
+2.flush 触发机制， 任务执行流程
+DBImpl::BackgroundFlush
+--PopFirstFromFlushQueue//获取一个任务
+--FlushMemTableToOutputFile
+----FlushJob flush_job//构建job
+----flush_job.Run//执行job
+------WriteLevel0Table//将memtable写入level0
+--------BuildTable//创建文件
+----------NewWritableFile
+----------file_writer->Sync//写入记录
+------edit_->AddFile//记录version edit.
+
+3.flush流程描述：
+流程如下：
+
+	（1）遍历 immutable-list，如果没有其它线程正在执行 flush，则将 flush 任务加入队列
+	（2）通过迭代器逐一扫描Immutable memtable 中的 key-value，将 key-value 写入到 data-block 
+	（3）如果 data block 大小已经超过 block_size （比如16k），或者是最后一对 key-value，则触发一次 block-flush
+	（4）根据压缩算法对 block 进行压缩，并生成对应的 index block 记录（begin_key, last_key, offset）
+	（5）至此若干个 block 已经写入文件，并为每个 block 生成了 index-block 记录
+	（6）写入 index-block，meta block，metaindex block 以及 footer 信息到文件尾
+	（7）将 SST 文件的元信息写入 manifest 文件
+	（8）flush 的过程是将 immutable table 写入 level 0，level 0 各个 SST 内部没有冗余数据，但 SST 之间会有 Key 的交叠。
+
+

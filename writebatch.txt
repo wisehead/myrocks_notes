@@ -1,0 +1,4 @@
+db::WriteBatch batch;
+batch.Put(key1, value);
+batch.SingleDelete(key1);
+s = db->Write(rocksdb::WriteOptions(), &batch);

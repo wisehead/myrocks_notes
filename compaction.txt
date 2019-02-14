@@ -169,4 +169,38 @@ level n 当前的 total file size 是否 大于 max_bytes_for_level_base
 
 	options.compaction_pri: only supported in level-based compaction  待确认
 
+11.Manual Compaction
+	用户可以直接手动发起 compaction。
+	
+	【适用场景】
+	
+	将数据 compaction 到 最底层，减少写放大，适用于 读负载高的业务；
+	修改 level num，将指定范围内的数据压缩到最底层，然后将文件直接迁移到指定的 level；
+	修改配置（例如：压缩算法、block size、bloom filter settings、索引格式）。
+	【使用方式】
+	
+	mysql> set session rocksdb_manual_compaction_threads=16;
+	Query OK, 0 rows affected (0.00 sec)
+	 
+	mysql> set global rocksdb_compact_cf='cf_node_pk';
+	Query OK, 0 rows affected (25 min 13.80 sec)
+	【注意事项】
+	
+	手动触发 compaction 会导致终端挂起，直至 compaction 结束
+	多个 session 发出 compaction 请求，请求会被添加到 FIFO 队列，顺序执行
+	MyRocks 同一时刻只能执行一个手动 campaction 请求
+	发起 compaction 请求的终端断开连接，若请求未开始则会被取消
+	以开始处理的 compaction 请求无法终止
 
+
+DBImpl::RunManualCompaction
+--env_->Schedule(&DBImpl::BGWorkCompaction, ca, Env::Priority::LOW, this,&DBImpl::UnscheduleCallback);
+--DBImpl::BGWorkCompaction
+----DBImpl::BackgroundCallCompaction
+------DBImpl::BackgroundCompaction
+--------PopFirstFromCompactionQueue
+--------CompactionJob compaction_job
+--------compaction_job.Prepare
+--------compaction_job.Run
+--------c->ReleaseCompactionFiles
+--------NotifyOnCompactionCompleted

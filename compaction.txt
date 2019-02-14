@@ -114,4 +114,59 @@ level n 当前的 total file size 是否 大于 max_bytes_for_level_base
 	【level 1~】：score = Level 1 ~ n file size / max_bytes_for_level_base
 
 
+8.compaction 动态调整触发条件
+	每层的 Target Size 都不同，通过 level_compaction_dynamic_level_bytes （true / false） 配置 Target Size  的动态调整。
+	
+	【level_compaction_dynamic_level_bytes 为 false】关闭动态调整，target size 计算规则如下：
+	
+	【level 0 的 target size】：max_bytes_for_level_base 的值
+	【level n 的 target size】：Target_Size(Ln+1) = Target_Size(Ln) * max_bytes_for_level_multiplier * max_bytes_for_level_multiplier_additional[n]
+	相关参数
+	max_bytes_for_level_multiplier：乘法因子
+	max_bytes_for_level_multiplier_additional[n]：各 level 的调整参数，默认为1
+	 
+	
+	【例如】：level 1 的 max_bytes_for_level_base 是 10GB，max_bytes_for_level_multiplier=10，max_bytes_for_level_multiplier_additional[1]=1。
+	
+	则 level 1，2，3，4 的 max_bytes_for_level_base 分别为：10GB，100GB，1000GB，10000GB
+	
+	【level_compaction_dynamic_level_bytes 为 true】动态调整，target size 计算规则如下：
+	
+	设：有 n 个 level，则 max_bytes_for_level_base 为最后一个 level n 的数据量阈值
+	
+	level n-1 = level n / max_bytes_for_level_multiplier。
+	【例如】：n=6，level n size = 276GB，max_bytes_for_level_multiplier = 10，则 level 1 ~ level 6 的 target size 为：
+	
+	 	
+	level 1：0
+	level 2：0
+	level 3：0.276 GB
+	level 4: 2.76 GB
+	level 5: 27.6 GB
+	level 6: 276 GB
+	
+
+9.compaction 并发执行
+	多个并发任务不会有重叠的key
+	为提高并发，rocksDB 通过 max_subcompactions 参数，能够将一个文件拆分为多个子任务，并发执行，类似于表级并行复制。
+
+10.配置项
+	options.max_bytes_for_level_base: 每层存放 SST 的数据量限制
+	
+	options.level_compaction_dynamic_level_bytes: 动态每层存放 SST 的数据量限制（level SST size limitation）
+	
+	options.max_bytes_for_level_multiplier and options.max_bytes_for_level_multiplier_additional: 动态调整 level size limitation 时的系数
+	
+	options.expanded_compaction_factor: 待确认
+	
+	options.source_compaction_factor: 待确认
+	
+	options.max_grandparent_overlap_factor: only for level-based compactions 待确认
+	
+	options.soft_rate_limit and options.hard_rate_limit: deprecated  待确认
+
+	options.hard_pending_compaction_bytes_limit: only used for level-based compaction 待确认
+
+	options.compaction_pri: only supported in level-based compaction  待确认
+
 

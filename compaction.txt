@@ -61,3 +61,28 @@ BackupCommand::DoCommand
 --------db_->FlushWAL
 --------db_->GetSortedWalFiles
 ------new_backup->SetSequenceNumber
+
+5.Level Compaciton 【compaction 流程】
+	（1）按score排序加入队列
+	（2）根据minkey：maxkey选择本层SST
+	（3）根据minkey：maxkey选择下层SST
+	（4）将涉及的SST组成compaction
+	（5）构造compaction job
+	（6）job run
+	
+6. compaction 触发条件
+compaction触发机制是通过判断 各个 level
+
+Total File Size
+SST 个数
+是否超过配置，来决定是否发生 compaction。
+
+【level 0 触发条件】
+
+SST 文件个数达到参数 level0_file_num_compaction_trigger
+level 0 的 file size 超过 max_bytes_for_level_base
+【level 1~n 触发条件】
+
+level n 当前的 total file size 是否 大于 max_bytes_for_level_base
+注：max_bytes_for_level_base 又称作 Target Size。
+

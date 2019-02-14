@@ -31,3 +31,33 @@ DBImpl::BackgroundFlush
 	（8）flush 的过程是将 immutable table 写入 level 0，level 0 各个 SST 内部没有冗余数据，但 SST 之间会有 Key 的交叠。
 
 
+4.flush调用点
+enum class FlushReason : int {
+  kOthers = 0x00,
+  kGetLiveFiles = 0x01,
+  kShutDown = 0x02,
+  kExternalFileIngestion = 0x03,
+  kManualCompaction = 0x04,
+  kWriteBufferManager = 0x05,
+  kWriteBufferFull = 0x06,
+  kTest = 0x07,
+  kDeleteFiles = 0x08,
+  kAutoCompaction = 0x09,
+  kManualFlush = 0x0a,
+};
+
+
+BackupCommand::DoCommand
+--BackupEngine::Open
+--backup_engine->CreateNewBackup
+----BackupEngineImpl::CreateNewBackupWithMetadata
+------GetAbsolutePath
+------backup_env_->FileExists
+------GarbageCollect
+------CreateDir
+------CheckpointImpl::CreateCustomCheckpoint
+--------db_->GetSortedWalFiles
+--------db_->GetLiveFiles
+--------db_->FlushWAL
+--------db_->GetSortedWalFiles
+------new_backup->SetSequenceNumber

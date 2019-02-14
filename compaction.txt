@@ -86,3 +86,32 @@ level 0 的 file size 超过 max_bytes_for_level_base
 level n 当前的 total file size 是否 大于 max_bytes_for_level_base
 注：max_bytes_for_level_base 又称作 Target Size。
 
+7.compaction 优先级计算score
+
+	当多个 level 同时达到触发条件时，需要确定 compaction 的先后顺序。
+		
+	因此，各个 level 需要计算出一个值 score，score 大的值先执行 compaction。
+	
+	RocksDB 中通过一个任务队列维护compaction任务，score 大的 level 优先加入任务队列等待处理。
+	
+	score 的计算方式如下：
+	
+	【level 0】： Snum = total file num / level0_file_num_compaction_trigger
+	
+	             Ssize = total file size / max_bytes_for_level_base
+	
+	             level 0 score = max(Snum, Sszie)
+
+	同时，level 0 的 compaction 操作会影响写入。
+	
+	为了不影响写入，直接将 level 0 的 score 调高，优先 compaction。
+	
+	具体调整方式如下：
+	level0_file_num_compaction_trigger，	4，	num 为 4 时，达到 compact 条件，															4 <= num < 20 时 Score = num / 4
+	level0_slow_down_writes_trigger，  	20，	num 为 20 时，RocksDB 会减慢写入速度，													20 <= num && num < 24 时 Score = 10000
+	level0_stop_writes_trigger，					24，	num 为 24 时，RocksDB 停止写入文件，尽快对 L0 进行 compact，		 24 <= num 时 Score = 1000000
+	
+	【level 1~】：score = Level 1 ~ n file size / max_bytes_for_level_base
+
+
+

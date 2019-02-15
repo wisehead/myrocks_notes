@@ -1,0 +1,53 @@
+1.memtable原理
+内存表是RocksDB它最重要的数据结构之一。除了默认的跳表（SkipList  skiplist.h  inlineskiplist.h）之外，它还增加了各种其他的内存表，例如：HashSkipList、HashLinkList、Vector 等。以空间换时间的有序链表 相比平衡二叉树而言，简单了不少的（对于大多数操作需要O(log n)平均时间）。
+
+空间复杂度： O(n)  （期望）
+跳跃高度： O(log n)（期望）
+
+相关操作的时间复杂度：
+查找： O(log n)     （期望）
+插入:    O(log n)     （期望）
+删除： O(log n)     （期望）
+
+
+search
+1 从顶层的头结点出发；
+2 若下一结点为目标值，则返回结果；
+3 若下一结点小于目标值，则前进；
+4 若下一结点大于目标值或为NULL，则：
+若当前处于最底层，则返回NULL；
+下降一层，重复2-4步。
+
+
+Insert
+1 计算出新结点的层数lv；
+2 从lv层的头结点出发，开始查找过程；
+3 如果找到目标值，说明key重复；
+4 如果当前处于最底层，则创建新结点，
+并依次将新结点插入到1-lv层
+
+
+
+2.memtable 发生切换的条件有
+	（1）memtable内存超过write_buffer_size会切换
+	（2）WAL日志满，WAL日志超过rocksdb_max_total_wal_size，会从所有的colomn family中找出含有最老日志(the earliest log containing a prepared section)的memtable进行切换
+	（3）Buffer满，全局的write buffer超过rocksdb_db_write_buffer_size时，会从所有的colomn family中找出最先创建的memtable进行切换
+	（4）flush memtable前
+
+3.memtable 切换实现
+ NewWritableFile //创建日志文件
+ ConstructNewMemtable //创建memtable
+ cfd->imm()->Add(cfd->mem(), &context->memtables_to_free_); //设置immutable
+ cfd->SetMemtable(new_mem); //设置新的memtable
+
+
+4.触发flush的条件有
+WAL日志满，WAL日志超过rocksdb_max_total_wal_size，会从所有的colomn family中找出含有最老日志的column family进行flush
+Buffer满，全局的write buffer超过rocksdb_db_write_buffer_size时，会从所有的colomn family中找出最先创建的memtable的column family进行flush
+手动设置参数force_flush_memtable_now/rocksdb_force_flush_memtable_and_lzero_now时
+CompactRange时
+创建checkpoint时
+shutdown时avoid_flush_during_shutdown=0 flush all
+
+
+

@@ -1,0 +1,19 @@
+1.SSTable结构
+SSTable 是 RocksDB 数据在外存的存储单位。每个 SSTable 是一个单独的文 件，默认使用BlockBasedTable。
+SSTable 由 Block 组成， Block 也是 RocksDB 最小的外存读取单位，包括 DataBlock, MetaBlock, IndexBlock 三种类型，
+DataBlock 记录用户的数据，
+MetaBlock 记录该 SSTable 的 BloomFilter,
+IndexBlock 记录每个 DataBlock 的范围。
+
+struct BlockBasedTable::Rep
+
+2.sstable查找流程
+
+用户每次要访问一个 SSTable 时，只需要先读取 IndexBlock 和 MetaBlock，如果通过了 BloomFilter 的检验，再从 IndexBlock 的索引结构中判断应该读取哪个 DataBlock，这样只需再读取对应 DataBlock 就可以获得数据。 
+
+读取指定key-->读取sstable文件尾部48个字节-->magic合法性检查-->读取DataIndexBlock的offset和size-->加载DataIndexBlock的内容进内存-->|
+																																																												|
+																																																												|
+																																																												|
+遍历该重启点下的key，找到对应的value<--二分查找Datablock中指定key所在的重启点<---CRC校验<--加载Datablock近内存<--二分查找指定key的Datablock的offset和size <--|
+

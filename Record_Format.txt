@@ -1,0 +1,99 @@
+1.记录格式
+向表 t1 中插入一行数据
+	mysql> SELECT * FROM t1;
+	+----+------+------+
+	| id | a    | b    |
+	+----+------+------+
+	|  1 |    1 | a    |
+	+----+------+------+
+	1 row in set (0.00 sec)
+
+
+主键索引记录
+	key: index_id, M(pk)
+	value: unpack_info, NULL-bitmap,a,b
+
+
+	index_id：索引 ID，全局唯一，4B
+	M(pk)：转化后的主键，转化后的 pk 可以直接 memcmp
+	unpack_info：pk 逆转化的信息
+	NULL-bitmap： 表示为 NULL 的字段
+	a/b：数据
+	综上：数据与主键索引保存在一起，MyRocks 的主键索引为聚簇索引
+
+
+
+二级索引记录
+	key: index_id,NULL-byte, M(b),M(pk)
+	value: unpack_info
+
+
+	index_id：二级索引 ID
+	NULL-byte：索引 b 是否为空
+	M(b)：转化后的二级索引
+	M(pk)：转化后的主键
+	unpack_info：逆转化信息
+
+
+2.索引转化
+rocksdb为了比较方便，将key字段转化为可以直接memcmp比较的形式。
+
+（1） 整型
+	需要考虑符号位
+	
+	1 表示为：00000000 00000000 00000000 00000001
+	0x00 00000000
+	0x01 00000000
+	0x02 00000000
+	0x03 00000001
+	-1 表示为：11111111 11111111 11111111 11111111
+	0x00 11111111
+	0x01 11111111
+	0x02 11111111
+	0x03 11111111
+	直接比较，则 -1 > 1，因此需要转化，规则为：0x00 ^ 128 (1000 0000)
+	
+	1 表示为：
+	0x00 10000000  -> 0x80
+	0x01 00000000  -> 0x00
+	0x02 00000000  -> 0x00
+	0x03 00000001  -> 0x01
+	-1 表示为：
+	0x00 01111111  -> 0x7F
+	0x01 11111111  -> 0xFF
+	0x02 11111111  -> 0xFF
+	0x03 11111111  -> 0xFF
+	转化后可以直接比较 1 > -1
+
+（2） char
+	不足的位直接补空格 0x20
+
+（3） varchar
+	const int VARCHAR_CMP_LESS_THAN_SPACES = 1;
+	const int VARCHAR_CMP_EQUAL_TO_SPACES = 2;
+	const int VARCHAR_CMP_GREATER_THAN_SPACES = 3;
+	 
+	 Example: m_segment_size=5, collation=latin1_bin:
+	 
+	  'abcd\0'   => [ 'abcd' <VARCHAR_CMP_LESS> ][ '\0    ' <VARCHAR_CMP_EQUAL> ]
+	  'abcd'     => [ 'abcd' <VARCHAR_CMP_EQUAL>]
+	  'abcd   '  => [ 'abcd' <VARCHAR_CMP_EQUAL>]
+	  'abcdZZZZ' => [ 'abcd' <VARCHAR_CMP_GREATER>][ 'ZZZZ' <VARCHAR_CMP_EQUAL> ]
+  
+3.key 的封装
+将 key 封装为 internal key
+	user_key：key	
+	seq_num：全局递增 sequence，用于 MVCC
+	value_type：put、merge、delete
+
+
+	将 internal key 封装为 memtable key，memtable 中的最终数据格式
+	
+三个概念：
+	逻辑key（纯粹的payload），
+	internal key(增加seqence num, value type，用于rocksdb磁盘存储), 
+	memtable key(增加key size, value size 用于memtable).
+	
+	
+	
+	

@@ -107,3 +107,55 @@ ha_create_table
 --------put_key
 
 
+5.数据字典 —— 元信息存储
+元信息以 key-value 形式保存在 __system__ CF 中
+各个步骤与记录的对应关系如下
+CF_DEFINITION：定义新的 CF，并分配 cf_id
+
+INDEX_INFO：创建索引信息，索引所属 CF ID、索引 ID、索引类型（主键索引、辅助索引、隐藏索引）
+
+DDL_ENTRY_INDEX_START_NUMBER：dbname+tblname 与 索引的映射
+
+
+6.数据字典 —— 元信息查询
+创建 CF cf_b：用于保存辅助索引 idx1 的数据
+	mysql> SELECT * FROM INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO;
+	+--------------+--------------+--------------------------------+
+	| TYPE         | NAME         | VALUE                          |
+	+--------------+--------------+--------------------------------+
+	| BINLOG       | FILE         | cq01-sys-replace001-bin.000011 |
+	| BINLOG       | POS          | 2517                           |
+	| BINLOG       | GTID         |                                |
+	| MAX_INDEX_ID | MAX_INDEX_ID | 265                            |
+	| CF_FLAGS     | 0            | default [0]                    |
+	| CF_FLAGS     | 1            | __system__ [0]                 |
+	| CF_FLAGS     | 2            | pk_cf [0]                      |
+	| CF_FLAGS     | 3            | idx_cf [0]                     |
+	| CF_FLAGS     | 4            | cf_b [0]                       |
+	+--------------+--------------+--------------------------------+
+	9 rows in set (0.00 sec)
+
+
+创建两个索引
+主键索引：PRIMARY，索引 ID : 264，由 CF default 管理，类型为1
+辅助索引：idx1，索引 ID : 265，由 CF cf_b 管理，类型为2
+	mysql> SELECT INDEX_NAME,INDEX_NUMBER,COLUMN_FAMILY,CF,INDEX_TYPE,KV_FORMAT_VERSION FROM INFORMATION_SCHEMA.rocksdb_ddl where TABLE_NAME='t1';
+	+------------+--------------+---------------+---------+------------+-------------------+
+	| INDEX_NAME | INDEX_NUMBER | COLUMN_FAMILY | CF      | INDEX_TYPE | KV_FORMAT_VERSION |
+	+------------+--------------+---------------+---------+------------+-------------------+
+	| PRIMARY    |          264 |             0 | default |          1 |                13 |
+	| idx1       |          265 |             4 | cf_b    |          2 |                13 |
+	+------------+--------------+---------------+---------+------------+-------------------+
+	2 rows in set (0.00 sec)
+
+
+建立 dbname 与 tablename 的映射关系
+	mysql> SELECT TABLE_SCHEMA,TABLE_NAME,INDEX_NAME,INDEX_NUMBER,COLUMN_FAMILY,CF,INDEX_TYPE,KV_FORMAT_VERSION FROM INFORMATION_SCHEMA.rocksdb_ddl where TABLE_NAME='t1';
+	+--------------+------------+------------+--------------+---------------+---------+------------+-------------------+
+	| TABLE_SCHEMA | TABLE_NAME | INDEX_NAME | INDEX_NUMBER | COLUMN_FAMILY | CF      | INDEX_TYPE | KV_FORMAT_VERSION |
+	+--------------+------------+------------+--------------+---------------+---------+------------+-------------------+
+	| test         | t1         | PRIMARY    |          264 |             0 | default |          1 |                13 |
+	| test         | t1         | idx1       |          265 |             4 | cf_b    |          2 |                13 |
+	+--------------+------------+------------+--------------+---------------+---------+------------+-------------------+
+	2 rows in set (0.00 sec)
+

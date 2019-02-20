@@ -47,3 +47,23 @@ mysql_execute_command
 ------------myrocks::ha_rocksdb::do_bulk_commit//myrocks::ha_rocksdb::update_write_row end !!!!!!!!!!!!!!!!
 --------------myrocks::ha_rocksdb::commit_in_the_middle
 ----------binlog_log_row
+
+3.myrocks各种写操作。
+插入操作比较好理解，直接写入writebatch就可 以了。
+
+ 删除操作在writebatch里本质上也是写入，只不过是标记了待删除的key。
+
+ 对应到Myrocks，如果更新主键或二级索引（RocksDB的key区域），会删除原有记录，插入新纪录，其他情况会直接插入新数据不会删除原有的数据。
+ 
+ 在具体写入数据时，会先写WAL日志，然后将key-value插入Memtable，Memtable满了或者其他条件被触发后会构造新的Memtable，并将老的Memtable转化为只读的immutable Memtable。immutable Memtable达到一定数量后需要刷盘成为SStable，初始层号为L0，后期L0还将通过compact向高层级合
+并。
+
+以上就是RocksDB在LSM数理论上的实现逻辑。下面我们透过代码来看具体实现。选用的版本为github/facebook/rocksdb，2018年7月11日版本（commit：35b38a232c1d357a7a885b9b4b8442e24a8433d7 ）
+
+4.总体模块划分
+我们可以将实现过程大致抽象为：外部接口层、数据库逻辑层、WriteBatch层、Memtable层，再往下还有跳表层操作，以及后续的Memtable切换和Flush到SStable等操作。
+
+5.对外接口
+RocksDB 对外提供了Get(key), Put(key), Delete(key) and NewIterator()等操作，我们可以直接从官方的文档里面找到测试程序，以此为入口开始代码分析（examples/c_simple_example.c）。
+
+

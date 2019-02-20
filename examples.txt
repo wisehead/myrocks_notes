@@ -1,0 +1,16 @@
+1.main
+main
+--rocksdb_options_create
+--rocksdb_open
+--rocksdb_backup_engine_open
+--rocksdb_writeoptions_create
+--rocksdb_put(db, writeoptions, key, strlen(key), value, strlen(value) + 1, &err);
+--rocksdb_readoptions_create
+--rocksdb_get(db, readoptions, key, strlen(key), &len, &err)
+--rocksdb_backup_engine_create_new_backup(be, db, &err);	//  create new backup in a directory specified by DBBackupPath
+--rocksdb_close(db);
+--rocksdb_restore_options_create
+--rocksdb_backup_engine_restore_db_from_latest_backup
+--rocksdb_open
+--rocksdb_backup_engine_close(be);
+--rocksdb_close(db)

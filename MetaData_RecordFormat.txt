@@ -1,0 +1,109 @@
+1.CF 的本质
+引入 CF 的目的是：将逻辑上相关的元组（k-v 对）划分到一个独立的物理单元中，进而提高效率、便于管理。维基百科中给出的定义总结如下：
+k-v 数据库中的 CF <=> 关系数据库的 table
+CF 的 SST <=> table 的 ibd
+上述的表述不够严谨，在 RocksDB 的 wiki 中将 CF 比作 DB
+多个表的数据可以保存到一个 CF 里面，从这个角度来看，CF 可以看作是表的集合，因此可以看做 DB
+
+2.MyRocks 的 CF
+	MyRocks CF 分为三类：
+	default：保存所有未指定 CF 的索引
+	__system__：保存数据字典，即元信息、映射关系
+	自定义 CF：用户创建的 CF
+
+	mysql> SELECT * FROM INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO;
+	+--------------+--------------+--------------------------------+
+	| TYPE         | NAME         | VALUE                          |
+	+--------------+--------------+--------------------------------+
+	| BINLOG       | FILE         | cq01-sys-replace001-bin.000011 |
+	| BINLOG       | POS          | 2517                           |
+	| BINLOG       | GTID         |                                |
+	| MAX_INDEX_ID | MAX_INDEX_ID | 265                            |
+	| CF_FLAGS     | 0            | default [0]                    |
+	| CF_FLAGS     | 1            | __system__ [0]                 |
+	| CF_FLAGS     | 2            | pk_cf [0]                      |
+	| CF_FLAGS     | 3            | idx_cf [0]                     |
+	| CF_FLAGS     | 4            | cf_b [0]                       |
+	+--------------+--------------+--------------------------------+
+	9 rows in set (0.00 sec)
+
+3.MyRocks 数据字典 —— 元信息
+MyRocks 元信息包含以下几类
+enum DATA_DICT_TYPE {
+    DDL_ENTRY_INDEX_START_NUMBER= 1, // 表和索引之间的映射关系
+    INDEX_INFO=                   2, // 索引id和索引属性的关系
+    CF_DEFINITION=                3, // CF 属性
+    BINLOG_INFO_INDEX_NUMBER=     4, // binlog位点及gtid信息，binlog_commit更新此信息
+    DDL_DROP_INDEX_ONGOING=       5, // 等待删除的索引信息
+    INDEX_STATISTICS=             6, // 索引统计信息
+    MAX_INDEX_ID=                 7, // 当前的index id，每次创建索引index id都从这个获取和更新
+    DDL_CREATE_INDEX_ONGOING=     8, // 等待创建的索引信息
+    END_DICT_INDEX_ID=          255
+};
+
+4.数据字典 —— 创建一张表
+建表语句
+	mysql> show create table t1\G
+	*************************** 1. row ***************************
+	       Table: t1
+	Create Table: CREATE TABLE `t1` (
+	  `id` int(11) NOT NULL AUTO_INCREMENT,
+	  `a` int(11) DEFAULT NULL,
+	  `b` char(8) COLLATE latin1_bin DEFAULT NULL,
+	  PRIMARY KEY (`id`),
+	  KEY `idx1` (`b`) COMMENT 'cf_b'
+	) ENGINE=ROCKSDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+	1 row in set (0.00 sec)
+
+
+建表流程：
+
+/**
+  @brief
+  create() is called to create a database. The variable name will have the name
+  of the table.
+   
+  @details
+  When create() is called you do not need to worry about
+  opening the table. Also, the .frm file will have already been
+  created so adjusting create_info is not necessary. You can overwrite
+  the .frm file at this point if you wish to change the table
+  definition, but there are no methods currently provided for doing
+  so.
+   
+  Called from handle.cc by ha_create_table().
+   
+  @return
+    HA_EXIT_SUCCESS  OK
+    other            HA_ERR error code (can be SE-specific)
+   
+  @see
+  ha_create_table() in handle.cc
+*/
+
+rea_create_table
+
+
+ha_create_table
+--ha_rocksdb::create
+----ha_rocksdb::get_table_if_exists
+----ha_rocksdb::create_key_defs
+------create_cfs//创建cf
+------create_key_def//创建索引信息
+----Rdb_ddl_manager::put_and_write	//Put table definition of `tbl` into the mapping, and also write it to the on-disk data dictionary.
+/*
+  Put table definition DDL entry. Actual write is done at
+  Rdb_dict_manager::commit.
+ 
+  We write
+    dbname.tablename -> version + {key_entry, key_entry, key_entry, ... }
+ 
+  Where key entries are a tuple of
+    ( cf_id, index_nr )
+*/
+------put_dict
+--------add_cf_flags
+--------add_or_update_index_cf_mapping
+--------put_key
+
+

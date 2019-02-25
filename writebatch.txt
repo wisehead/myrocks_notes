@@ -1,4 +1,48 @@
+1.writeBatch使用例子
 db::WriteBatch batch;
 batch.Put(key1, value);
 batch.SingleDelete(key1);
 s = db->Write(rocksdb::WriteOptions(), &batch);
+
+2.在WriteBatch层是个衔接层，主要工作就是按照不同情况，调用下层接口实现Insert。
+这里面牵扯的不同情况是是否inplace update（在Memtable中原地更新键值一致的元组的值，而不是追加一条新的）；
+以及是否需要inplace_callback。另外随着有数据插入，本层会及时更新Memtable布隆过滤器的哈希值。
+
+WriteBatchInternal::InsertInto
+--MemTableInserter inserter(sequence, memtables, flush_scheduler,               
+                            ignore_missing_column_families, recovery_log_number,
+                            db, concurrent_memtable_writes,                     
+                            nullptr /*has_valid_writes*/, seq_per_batch);  
+--for (auto w : write_group) {
+		w->status = w->batch->Iterate(&inserter);
+--WriteBatch::Iterate
+----ReadRecordFromWriteBatch
+----PutCF
+------PutCFImpl
+--------SeekToColumnFamily
+--------if (!moptions->inplace_update_support) {
+				  MemTable::Add
+--------else if (moptions->inplace_callback == nullptr)
+----------MemTable::Update
+------------iter->Seek(lkey.internal_key(), mem_key.data())
+------------if (new_size <= prev_size) {//如果找得到，而且写的下，则原地update
+--------------EncodeVarint32(const_cast<char*>(key_ptr) + key_length, new_size);
+------------else
+--------------Add(seq, kTypeValue, key, value);
+--------else (moptions->inplace_callback != nullptr)
+----------MemTable::UpdateCallback
+------------iter->Seek(lkey.internal_key(), memkey.data());
+------------if (iter->Valid())
+--------------if status == UpdateStatus::UPDATED_INPLACE
+----------------moptions_.inplace_callback
+----------------EncodeVarint32
+----------------memcpy(p, prev_buffer, new_prev_size);
+--------------if status == UpdateStatus::UPDATED
+----------------Add(seq, kTypeValue, key, Slice(str_value));
+--------MaybeAdvanceSeq();
+--------CheckMemtableFull();
+
+
+
+
+

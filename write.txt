@@ -148,9 +148,49 @@ DBImpl::WriteImpl
 ------//if (!parallel)//非并发写
 --------WriteBatchInternal::InsertInto
 ------// if (parallel) 并发写
-
+--------write_thread_.LaunchParallelMemTableWriters
+--------WriteBatchInternal::InsertInto
+--------write_thread_.CompleteParallelMemTableWriter
+--------write_thread_.ExitAsBatchGroupLeader
 
 --//if not enable_pipelined_write
+----DBImpl::PipelinedWriteImpl
+------WriteThread::Writer w(write_options, my_batch, callback, log_ref,disable_memtable);
+------write_thread_.JoinBatchGroup
+------// if STATE_GROUP_LEADER
+--------WriteThread::WriteGroup wal_write_group;
+--------write_thread_.EnterAsBatchGroupLeader
+--------WriteToWAL
+--------ExitAsBatchGroupLeader
+----------if (LinkGroup(write_group, &newest_memtable_writer_)) {
+          // The leader can now be different from current writer.
+          SetState(write_group.leader, STATE_MEMTABLE_WRITER_LEADER);
+          }
+					// Link the ramaining of the group to memtable writer list. 将wal_write_group连接到newest_memtable_writer_队列中，然后选择MEMTABLE_WRITER队列中的leader，并唤醒它。
+----------// Reset newest_writer_ and wake up the next leader.
+          Writer* newest_writer = last_writer;
+          if (!newest_writer_.compare_exchange_strong(newest_writer, nullptr)) {
+            Writer* next_leader = newest_writer;
+            while (next_leader->link_older != last_writer) {
+              next_leader = next_leader->link_older;
+              assert(next_leader != nullptr);
+            }
+            next_leader->link_older = nullptr;
+            SetState(next_leader, STATE_GROUP_LEADER);//选择newest_writer队列中的新leader，并唤醒它。
+          }  
+          AwaitState(leader, STATE_MEMTABLE_WRITER_LEADER |
+                                 STATE_PARALLEL_MEMTABLE_WRITER | STATE_COMPLETED, &eabgl_ctx);
+
+          //自己沉睡于MEMTABLE_WRITER队列中。
+------// if STATE_MEMTABLE_WRITER_LEADER
+--------write_thread_.EnterAsMemTableWriter
+--------if (memtable_write_group.size > 1 && immutable_db_options_.allow_concurrent_memtable_write) {
+				  write_thread_.LaunchParallelMemTableWriters
+--------else
+				  WriteBatchInternal::InsertInto
+				  write_thread_.ExitAsMemTableWriter				  
 
 
 
+
+				  

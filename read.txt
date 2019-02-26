@@ -90,3 +90,27 @@ do_select
 ------myrocks::ha_rocksdb::unlock_row
 
 
+3.整体逻辑
+RocksDB的读相关操作在逻辑上并不复杂，基本继承了LevelDB的流程步骤，但在细节上有了很多优化，并额外引入了column family的概念。
+
+--对外接口层
+		DB：level最外层接口
+		Snapshot：主要作用是记录当前sequenceNumber，干涉compaction的合并数据。
+		
+--逻辑层
+		DBImpl：组织各个组件的中控层。
+		VersionSet: 管理所有Version的生命周期。
+		Version：1.接受最外层接口的请求，并转发到sstable层，同时记录compaction的状态。2.管理iterators。3.管理mainfest文件。
+		
+--存储层
+		SSTable：管理levelDB文件存储层的核心组件。
+		Memtable：核心操作由skiplist实现。
+		Log::Writer：写入binlog
+		
+--OS适配层
+		Env：操作系统接口，负责对接操作系统功能，隐藏系统细节。包括：1.文件操作。2.定时任务。
+		
+当用户通过Get（）接口进行key-value pair搜索时，会拿到一个超级版本supper version，并依次从memtable、immutable memtable队列、sstable缓存中搜索。
+
+4.对外接口		
+	

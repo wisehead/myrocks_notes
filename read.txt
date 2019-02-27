@@ -383,4 +383,42 @@ select * from t where id>=1 合并与遍历
 		3.去除重复、被 删除的元素， 并做Merge
 		4.将WriteBatch 的操作更新到 列表上
 		
+12.MVCC
+	--MVCC实现
+		 当前事务的写入在提交前存储在自己的WriteBatch中，其他事务读取不到。
+		 RR隔离级别下，事务的读取在第一次执行读取操作时获取SequenceNumber。 
+		 读取过程中会过滤大于SequenceNumber的记录。
 
+	--MVCC等值查询和范围查询
+		 在等值查询和范围查询中略有不同。
+		 等值查询中，当在Iterator中执行Seek操作时，由于Key的比较规则， SequenceNumber较大的项已被跳过，而在Next操作中，不会找到不等于目标 Key的项;
+		 而在范围查询中Sequence Number较大的项可能在Next操作中被取出来，因此 需要再次进行过滤。
+		
+	--范围查询例子
+		Select * from t where id >= 5;
+		给出一个Seek和Next过程中实现MVCC的例子，假设有列表(元素格式为Key: SequenceNumber):[5:10, 5:9, 5:8, 6:10, 6:9, 6:8]，当前快照Sequence Number值为9.
+		Seek(5)
+		[5:10, 5:9, 5:8, 6:10, 6:9, 6:8]
+		Next
+		1, 向前一步，得到[5:10, 5:9, 5:8, 6:10, 6:9, 6:8]，发现重复，跳过。
+		2, 向前两步，得到[5:10, 5:9, 5:8, 6:10, 6:9, 6:8]，Sequence Number不符合跳过。 3, 向前三步，得到[5:10, 5:9, 5:8, 6:10, 6:9, 6:8]，符合，Next结束。		
+		
+		
+等值查询
+	Memtable
+	--SkipList iterator
+	--TableReader(Filter, MVCC)
+	----Block Iterator
+	--GetContext(Merge)//会一直传下去
+	
+范围查询		
+	MemTableIterator
+	--SkipList Iterator
+	DBIter(去重，MVCC，Merge)	
+	TableIterator (Filter)
+	--BlockIterator
+		
+		
+		
+		
+		

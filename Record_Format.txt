@@ -235,3 +235,14 @@ rocksdb为了比较方便，将key字段转化为可以直接memcmp比较的形�
 	// varstring :=
 	//    len: varint32
 	//    data: uint8[len]
+
+6.Key格式
+ Internal Key
+| User key (string) | sequence number (7 bytes) | value type (1 byte) |
+ Lookup Key
+| Size (int32变长)| User key (string) | sequence number (7 bytes) | value type (1 byte) |
+
+
+
+	
+	

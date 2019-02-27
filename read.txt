@@ -306,19 +306,81 @@ Open涉及的内容很多，主要是通过读footer在TableReader对象里面�
 最后用 NewDataBlockIterator去seek快内的值。最后SaveValue按照key-value的类型决定返回还是继续搜索。
 
 
+读流程逻辑步骤：
+	-- 找到一个可能含有Key的文件（sst fraction cascading）
+	-- 从TableCache中查找Table Reader
+	-- 使用FullFilter对文件进行过滤
+	-- 如果包含，使用Index定位block位置
+	-- 使用BlockFilter对Block进行过滤
+	-- 在DataBlock中搜索记录。
 
 
 
 
+8.读流程
+select * from t where id=1
+	-- 在 WriteBatch 中查找
+	-- 在Memable 中查找
+	-- 在 Immutable MemTable 中查找
+	-- 在Block Cache和SST 文件中查找
 
 
+9.Fraction Cascading
+ 1层以上并且该层文件数多于3才会执行。
+ 在某一层进行查询时，会根据比较的结果设置查询的上限和下限。
+ 在下一层进行查询时，会使用这个查询的上限和下限减少文件搜索的范围。
+ 
+还是没搞明白什么是 Fraction Cascading.
+  
+10.读流程 iterator操作相关
+构建数据的 Iterator
+通过Seek函数定位 记录的可能位置
+执行Next并进行过 滤，合并
 
 
+ Iterator 
+	 Seek 
+	 Next
+	 Prev
+	 SeekToFirst 
+	 SeekToLast 
+	 key
+	 value
+
+DBIter
+--MergingIterator
+---- MemTable Iterator
+---- Table Iterator
+
+上层Iterator的Seek或Next函数会调用下层Iterator的Seek或Next函数， 取决于上层Iterator的工作内容，下层Iterator的相应函数可能会调用多次。
+
+11.范围查询搜索过程
+
+select * from t where id>=1 层级搜索
+		1. 通过VersionStroageInfo类可以获得文件元数据，包括每个文件包含Key的最大 值和最小值等，这些信息随文件的变化而维护。
+		2. 通过二分搜索找到可能包含Key的文件。
+		3. 对于第0层，由于范围重叠，必须要扫描每个文件。
 
 
+select * from t where id>=1 文件内部搜索
+		1. 从Footer定位 IndexBlock
+		2. 使用Index Block得到offset， 计算filter编号， 然后使用Filter Block中的offset array获得filter， 使用filter与Key 判断是否Match
+		3. 根据offset，获 取Data Block
 
 
+select * from t where id>=1 Index搜索
+		每个Data Block有一个 索引项，索引项的Key 大于等于前Data Block 的最大Key，小于后 Data Block的最小Key.
 
 
+select * from t where id>=1 Block内部搜索
+		1. 从结尾读取 num_restarts获得 Restart数组的起始位 置，由于每个Restart 项长度固定，可以计算 出第i个项的位置。
+		2. 在Restart Point 区域二分查询，找 到恰好较小的重启 点。
+		3. 使用重启点定位 一条Record，向下 顺序搜索，找到恰 好较大或等于的记 录。
 
+select * from t where id>=1 合并与遍历
+		1.使用堆排序将 多层列表合并 为一个
+		2.在遍历这个有 序列表时，去 除新版本元素
+		3.去除重复、被 删除的元素， 并做Merge
+		4.将WriteBatch 的操作更新到 列表上
+		
 

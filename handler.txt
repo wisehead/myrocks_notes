@@ -1,0 +1,68 @@
+1.信息:
+- 记录行数
+- 索引数据大小
+- 数据大小
+- 每个Key的记录数
+- 每个Key Prefix的不同Key数
+• 在Flush，Compaction和手动执行ANALYZETABLE 时更新
+
+
+2.索引选择:
+	利用之前的数据并通过较为简单的查询，records_in_range实现了对于两个 Key之间的记录数的估算。主要的估算的公式为:
+	ret = rows*sz/disk_size
+	其中rows和disk_size已经在上面一阶段求出，sz表示两个Key之间的数据所占 用的disk_size，sz的估算逻辑最终落到 BlockBasedTable::ApproximateOffsetOf通过IndexIterator的一次Seek获得 key所在Block的Offset.
+	当这个代价计算相等的情况下，默认先选择Primary Key. 但代价相等且满足索引读(covering index)的情况下选择Secondary Key.
+	
+3.索引选择:
+	|假设有4个SST文件，我们要找的范围是99-211。
+	|1. 定位99所在的文件根据文件的minKey和maxKey元数据，定位到时SST1，之后通
+	|过SST1的Index搜索99所在的块(Seek)，找到的Offset为28.
+	|2. 设置size=0.
+	|3. 遍历SST1(由99定位得到)以及之后的文件的元数据，如果211不在范围，size 加上文件大小，如果211在范围内，则定位211所在块，假设是在SST3的Offset为 2的位置。
+	|4. 最终的结果:size + 2 – 28 = 35+30+2-28=39.
+
+
+4.
+	|最大User Key为要查找Key所属的IndexNumber加一，当执行select * from torder by id desc时，需要定位最大的id，这时Seek使用的Key就是这个。
+	|最小User Key为要查找的IndexNumber，当执行select * from t时，需要定位最小
+	|的id，这时Seek使用的Key就是这个。
+	|下一个InternalKey，计算方式为IndexNumber + Key + 0(SequenceNumber 7bytes) + 0(Type Delete 1 byte).根据之前的排序方式，这个InternalKey在 Key相等的情况下最大而且一定不存在，因此可以定位下一个Key。
+
+
+5.从handler层来看共有两条路径可以使用
+	- 使用Key可以直接获得数据，则调用index_read_map或get_row_by_rowid，进入 rocksdb后，调用DBImpl::Get获取一条记录，这条路径也会通过TableIterator的 Seek函数找到目标行。
+	- 需要遍历获得数据，则调用m_scan_it的Seek和Next，进入rocksdb后使用刚才描 述的BaseDeltaIterator进行遍历，如果使用的Iterator是在Secondary Key上进行遍 历，则会从Secondary Key上解析出Primary Key，再使用Primary Key进入等值的 读取流程。
+
+5.具体代码流程
+	（1）范围查询
+	--m_scan_it Seek
+	----m_scan_it Next
+	----get_row_by_rowid
+	
+	（2）Primary Key等值查询
+	--get_row_by_rowid
+	
+	（3）Unique Key等值查询
+	--m_scan_it Seek
+	----get_row_by_rowid
+	
+	调用get_row_by_rowid的条件。
+	如果不满足covering index需要获取完整记录， 则都需要调用 get_row_by_rowid
+	
+	
+6.Arena
+	-- 在Iterator层次创建的过程中为Iterator分配空间。
+	-- 大于四分之一块大小时分配一个单独的块，单独使用。
+	
+7.Block Cache和Table Cache
+	- 缓存默认使用ShardedLRUCache实现
+	- Block Cache->使用文件编号和Offset作为Key查找Block
+	- Table Cache->使用文件名查找TableReader
+
+8.WriteBatchWithIndex
+	- WriteBatch，主体是一个字符串，可以解析出其中的操作 
+	- Index，是一个SkipList，索引WriteBatch中的内容
+
+10.SuperVersion
+	- SuperVersion引用了当前Iterator所需搜索的内容，包括一个应用SST文件的 Version，以及MemTable，Immutable MemTable
+	- 在Iterator遍历数据库时，SuperVersion保证了遍历所需的SST文件， MemTable不会被删除。

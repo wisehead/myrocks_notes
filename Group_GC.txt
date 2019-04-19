@@ -170,6 +170,12 @@ typedef struct ssd_group_info_s {
 
 
 
-10.
+9.ssd_group_gc_push_group_id_by_wblock
 
+
+swb_dereference_and_release/ssd_block_free/run_load_queues
+
+
+ssd_group_gc_trigger_gc
+--ssd_group_gc_push_group_id_by_wblock
 

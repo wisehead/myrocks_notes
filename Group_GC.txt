@@ -1,6 +1,11 @@
 1.ssd_write
 
 2.ssd_group_gc_top_group_init
+ssd_group_gc_top_group_init
+--ssd_fd_get
+----cf_queue_pop(ssd->fd_q, (void*)&fd, CF_QUEUE_NOWAIT)
+--ioctl(fd, SFX_BLK_FTL_IOCTL_GET_EUID_SIZE, &group_size)
+
 
 3.ssd_group_gc_register_group
 
@@ -137,7 +142,34 @@ typedef struct ssd_alloc_group_table_s {
     } stat;
 } ssd_alloc_group_table;
 
-7.
+7.drv_group_info
+// top-level (drive): group info
+//--
+typedef struct drv_group_info_s {
+    // (set once, never change)
+    uint64_t        group_id;
+    uint64_t        g_defrag_lwm_size;  // threshold size for defrag (in bytes)
+    uint64_t        g_group_size;       // hardware group size (in bytes)
 
+    // (ever changing)
+    cf_atomic64     g_inuse_size;       // database inuse size (in bytes)
+    cf_atomic64     n_g_swb_pending;    // number of wblocks with pending swb
+    cf_atomic64     defrag_ref;
+} drv_group_info;
+
+
+8.ssd_group_info//注意区分两种group info
+// low-level (ssd): group info
+//--
+typedef struct ssd_group_info_s {
+    uint64_t        group_id;       // (set once, never change)
+    drv_group_info      *top_group_info;    // (set once, never change)
+
+    cf_queue        *g_wblock_queue;    // all wblocks (per group, within ssd)
+} ssd_group_info;
+
+
+
+10.
 
 

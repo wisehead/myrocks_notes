@@ -13,4 +13,131 @@ ssd_group_gc_refresh_info
 ----ssd_group_gc_top_group_init
 ----cf_shash_put_unique
 
-4.
+4.drv_ssd
+typedef struct drv_ssd_s
+{
+	struct as_namespace_s *ns;
+
+	char			*name;				// this device's name
+	char			*wdname;			// this device's whole disk name
+								// if it's a partition
+	char			*shadow_name;		// this device's shadow's name, if any
+
+	uint32_t		running;
+
+	pthread_mutex_t	write_lock;			// lock protects writes to current swb
+	ssd_write_buf	*current_swb;		// swb currently being filled by writes
+
+	int				commit_fd;			// relevant for enterprise edition only
+	int				shadow_commit_fd;	// relevant for enterprise edition only
+
+	pthread_mutex_t	defrag_lock;		// lock protects writes to defrag swb
+	ssd_write_buf	*defrag_swb;		// swb currently being filled by defrag
+
+	cf_queue		*fd_q;				// queue of open fds
+	cf_queue		*shadow_fd_q;		// queue of open fds on shadow, if any
+
+	cf_queue		*free_wblock_q;		// IDs of free wblocks
+	cf_queue		*defrag_wblock_q;	// IDs of wblocks to defrag
+	cf_queue		*defrag_group_q;	// IDs of groups to defrag
+
+	cf_queue		*swb_write_q;		// pointers to swbs ready to write
+	cf_queue		*swb_shadow_q;		// pointers to swbs ready to write to shadow, if any
+	cf_queue		*swb_free_q;		// pointers to swbs free and waiting
+	cf_queue		*post_write_q;		// pointers to swbs that have been written but are cached
+
+	cf_atomic64		n_defrag_wblock_reads;	// total number of wblocks added to the defrag_wblock_q
+	cf_atomic64		n_defrag_wblock_writes;	// total number of swbs added to the swb_write_q by defrag
+	cf_atomic64		n_wblock_writes;		// total number of swbs added to the swb_write_q by writes
+
+	volatile uint64_t n_tomb_raider_reads;	// relevant for enterprise edition only
+
+	cf_atomic32		defrag_sweep;		// defrag sweep flag
+
+	uint64_t		file_size;
+	int				file_id;
+
+	uint32_t		open_flag;
+	bool			data_in_memory;
+	bool			started_fresh;		// relevant only for warm or cool restart
+
+	uint64_t		io_min_size;		// device IO operations are aligned and sized in multiples of this
+	uint64_t		commit_min_size;	// commit (write) operations are aligned and sized in multiples of this
+
+	cf_atomic64		inuse_size;			// number of bytes in actual use on this device
+
+	uint32_t		write_block_size;	// number of bytes to write at a time
+
+	uint32_t		sweep_wblock_id;				// wblocks read at startup
+	uint64_t		record_add_older_counter;		// records not inserted due to better existing one
+	uint64_t		record_add_expired_counter;		// records not inserted due to expiration
+	uint64_t		record_add_max_ttl_counter;		// records not inserted due to max-ttl
+	uint64_t		record_add_replace_counter;		// records reinserted
+	uint64_t		record_add_unique_counter;		// records inserted
+
+	ssd_alloc_table		*alloc_table;
+	ssd_alloc_group_table	*alloc_group_table;
+
+	pthread_t		maintenance_thread;
+	pthread_t		write_worker_thread[MAX_SSD_THREADS];
+	pthread_t		shadow_worker_thread;
+	pthread_t		defrag_thread;
+
+	histogram		*hist_read;
+	histogram		*hist_large_block_read;
+	histogram		*hist_write;
+	histogram		*hist_shadow_write;
+	histogram		*hist_fsync;
+} drv_ssd;
+
+
+5.struct drv_whole_ssds
+// each whole-disk
+typedef struct drv_whole_ssds_s {
+    // next whole-disk
+    drv_whole_ssds      *next_drv;
+    // whole-disk name
+    char            *wdname;
+    // drv_group_info
+    cf_shash        *drv_group_hash;
+    // 1. if ssd is whole-disk, this is itself, or
+    // 2. if ssd(s) is(are) partition(s), this is list of (multiple)
+    // partition(s) belong to this whole-disk
+    drv_sub_ssd     *sub_ssd_list;
+} drv_whole_ssds;
+
+6.ssd_alloc_group_table
+// Top level structure for Group GC (per ssd).
+typedef struct ssd_alloc_group_table_s {
+    // in bytes: partition offset (0 when whole disk)
+    int64_t         part_offset;
+    cf_atomic64     current_group_id;
+    // == number of wblocks per ssd
+    uint32_t        n_groups;
+    // use wblock_id as index
+    ssd_wblock_info     *wblock_table;
+    // low level group hash (ssd_group_info)
+    cf_shash        *ssd_group_hash;
+    drv_whole_ssds      *whole_ssd;
+    struct {
+        // counter: failed to get current_group_id
+        uint64_t    stat_fail_current_group_id;
+        // counter: failed to get group_id
+        uint64_t    stat_fail_get_group_id;
+        // counter: total trim
+        uint64_t    stat_trim;
+        // counter: total completed defragged groups
+        uint64_t    stat_complete_df_group;
+        // counter: total completed groups,
+        uint64_t    stat_complete_non_df_group;
+        // counter: duplicate group_id push for defrag
+        uint64_t    stat_duplicate_df_push_group_id;
+        // active summary: total groups in defrag queue
+        int     stat_defrag_q_group;
+    } stat;
+} ssd_alloc_group_table;
+
+7.
+
+
+

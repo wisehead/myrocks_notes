@@ -178,4 +178,39 @@ swb_dereference_and_release/ssd_block_free/run_load_queues
 
 ssd_group_gc_trigger_gc
 --ssd_group_gc_push_group_id_by_wblock
+----drv_group_info *top_g = t_ssd->alloc_group_table->wblock_table[wblock_id].g.w_group->top_group_info;
+----uint64_t group_id = t_ssd->alloc_group_table->wblock_table[wblock_id].g.w_group_id;
+----drv_sub_ssd *next_ssd = t_ssd->alloc_group_table->whole_ssd->sub_ssd_list;
+----cf_queue_push_unique(next_ssd->ssd->defrag_group_q, &group_id);
 
+//将group id加到所有的defrag_group_q，然后怎么搞？？？？？？
+
+
+10.ssd_wblock_info
+// Shortcut to access each wblock's group info. (per wblock)
+// The members keep changing.
+// Access with ssd->alloc_group_table->wg_info[wblock_id]
+// where: wblock_id is [0, 1, ..., max wblock_id)
+//--
+typedef struct ssd_wblock_info_s {
+    // group shortcut access
+    struct {
+        uint64_t        w_group_id;
+        ssd_group_info      *w_group;
+    } g;
+    // cached wblock info, per wblock
+    struct {
+        // the actual size written to ssd per wblock
+        cf_atomic32     w_inuse_sz;
+        // if or not associated with a swb
+        bool            w_with_swb;
+    } w;
+} ssd_wblock_info;
+
+11.drv_sub_ssd
+// a single whole-disk or a single partition
+//--
+typedef struct drv_sub_ssd_s {
+    drv_sub_ssd     *next_ssd;
+    drv_ssd         *ssd;
+} drv_sub_ssd;

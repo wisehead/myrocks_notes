@@ -214,3 +214,51 @@ typedef struct drv_sub_ssd_s {
     drv_sub_ssd     *next_ssd;
     drv_ssd         *ssd;
 } drv_sub_ssd;
+
+12.run_defrag
+
+ssd_group_gc_push_group_id_by_wblock负责把group_id放入defrag_group_q，
+run_defrag负责把各个group_id取出来。。。进行碎片整理。
+
+
+run_defrag
+--free_wblock_count = cf_queue_sz(ssd->free_wblock_q);
+--pending_group_count = cf_queue_sz(ssd->defrag_group_q);
+--while (true) {
+----//state machine code
+----cf_queue_pop(ssd->defrag_group_q, &group_id, CF_QUEUE_NOWAIT)cf_shash_get(agt->ssd_group_hash, &group_id, &g)
+----// We have to defrag wblocks one by one because:
+----// - The disk header, aka wblock at index 0, is not tracked by
+----//   Group GC algorithm, trimming the entire group can definitely
+----//   cause the header data loss, consequently cause data loss on
+----//   the entire disk.
+----// - With multiple disk partitions, a group can span over more
+----//   than one partition, i.e. a group tracked in one partition
+----//   (one drv_ssd structure) only contains part of the data in
+----//   the physical group, thus trimming the entire group erases
+----//   data in other partition.
+----// - Checking if all wblocks are physically continuous would
+----//   involve many querying via ioctl() and address/offset
+----//   sort/concatenation operations, which is not seemingly
+----//   efficient. And the result of such attempt may finally
+----//   proven to be waste of resource now and then when processing
+----//   group by group.
+----while (CF_QUEUE_OK == cf_queue_pop(g->g_wblock_queue, &wblock_id, CF_QUEUE_NOWAIT)) {
+------ssd_defrag_wblock
+----}//while cf_queue_pop(g->g_wblock_queue, &wblock_id,......
+----cf_atomic64_decr(&g->top_group_info->defrag_ref)
+----agt->stat.stat_defrag_q_group--;
+----agt->stat.stat_complete_df_group++;
+
+----next_group_gc:
+----while (CF_QUEUE_OK == cf_queue_pop(ssd->defrag_wblock_q, &wblock_id, CF_QUEUE_NOWAIT)) {//注意和第一个group gc不是一个q。第一个是g_wblock_queue
+------cf_atomic64_incr(&ssd->n_defrag_wblock_reads);
+------ssd_defrag_wblock(ssd, wblock_id, read_buf);
+----}//while cf_queue_pop(ssd->defrag_wblock_q,......
+----continue;//goto while(true) outer loop
+
+----if (cf_queue_sz(ssd->defrag_wblock_q) > q_min)
+----cf_queue_pop(ssd->defrag_wblock_q, &wblock_id,
+----ssd_defrag_wblock
+
+--}//while true

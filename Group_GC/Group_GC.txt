@@ -262,3 +262,81 @@ run_defrag
 ----ssd_defrag_wblock
 
 --}//while true
+
+
+13.ssd_defrag_wblock
+
+ssd_defrag_wblock
+--ssd_fd_get
+----cf_queue_pop(ssd->fd_q, (void*)&fd, CF_QUEUE_NOWAIT);
+----file_offset = WBLOCK_ID_TO_BYTES(ssd, wblock_id);
+----lseek(fd, (off_t)file_offset, SEEK_SET)
+----read(fd, read_buf, ssd->write_block_size)
+----ssd_fd_put
+----while (wblock_offset < ssd->write_block_size && cf_atomic32_get(p_wblock_state->inuse_sz) != 0) {
+------drv_ssd_block *block = (drv_ssd_block*)&read_buf[wblock_offset];
+------ssd_decrypt(ssd, file_offset + wblock_offset, block);
+------// Found a good record, move it if it's current.
+------int rv = ssd_record_defrag
+----//end while (wblock_offset < ssd->write_block_size && ....
+----ssd_release_vacated_wblock
+------ssd_group_gc_trim_wblock
+
+
+14.ssd_group_gc_trim_wblock
+
+ssd_group_gc_trim_wblock
+--ssd_fd_get
+--range[0] = WBLOCK_ID_TO_BYTES(ssd, wblock_id);
+--range[1] = ssd->write_block_size;
+--ioctl(fd, BLKDISCARD, &range)//硬件回收命令。
+--ssd_fd_put
+--ssd->alloc_group_table->stat.stat_trim++
+--ssd_group_gc_refresh_info(+)
+--ssd_group_gc_set_current_id
+----ioctl(fd, SFX_BLK_FTL_IOCTL_GET_OPEN_EUID, &group_id)//看下group id是否改变。。。。
+
+
+15.ssd_group_gc_refresh_info
+
+ssd_group_gc_refresh_info
+--ssd_wblock_info *p_wblock_table = &agt->wblock_table[wblock_id];
+--更新元信息 p_wblock_table
+--group_id = (WBLOCK_ID_TO_BYTES(ssd, wblock_id) + agt->part_offset) >> 9; // sector
+--ssd_fd_get
+--ioctl(fd, SFX_BLK_FTL_IOCTL_GET_EUID, &group_id);
+--ssd_fd_put
+--cf_shash_get(agt->ssd_group_hash, &group_id, &g)
+--p_wblock_table->g.w_group_id = group_id;
+--p_wblock_table->g.w_group = g;
+--cf_queue_push_unique(p_wblock_table->g.w_group->g_wblock_queue, &wblock_id);
+
+
+16.ssd_record_defrag
+
+ssd_record_defrag
+--as_partition_getid//partition id，看起来像是as内部的概念，将磁盘划分成多个partition，现在需要搞清楚，ns->partition 和 ssd->partition什么关系？？？？？？
+--as_partition_reserve
+--as_record_get(rsv.tree, &block->keyd, &r_ref);
+--defrag_move_record(ssd, wblock_id, block, r);
+--as_record_done(&r_ref, ns);
+--as_partition_release(&rsv);
+
+
+17.drv_ssd_block 代表一个block。
+
+//--
+// Per-record metadata on device.
+typedef struct drv_ssd_block_s {
+    uint64_t        sig;            // deprecated
+    uint32_t        magic;
+    uint32_t        length;         // total after this field - this struct's pointer + 16
+    cf_digest       keyd;
+    uint32_t        generation;
+    cf_clock        void_time;
+    uint32_t        bins_offset;    // offset to bins from data
+    uint32_t        n_bins;
+    uint64_t        last_update_time;
+    uint8_t         data[];
+} __attribute__ ((__packed__)) drv_ssd_block;
+

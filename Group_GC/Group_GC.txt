@@ -340,3 +340,6 @@ typedef struct drv_ssd_block_s {
     uint8_t         data[];
 } __attribute__ ((__packed__)) drv_ssd_block;
 
+
+18.defrag_move_record
+

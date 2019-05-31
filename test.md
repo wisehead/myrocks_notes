@@ -2,12 +2,13 @@
 
 [Basic writing and formatting syntax](https://help.github.com/en/articles/basic-writing-and-formatting-syntax)
 
-# 1.Headers
+# 一、Syntax guide
+## 1.1.Headers
 # This is an <h1> tag
 ## This is an <h2> tag
 ###### This is an <h6> tag
 
-# 2.Emphasis
+## 1.2.Emphasis
 *This text will be italic*
 _This will also be italic_
 
@@ -16,32 +17,45 @@ __This will also be bold__
 
 _You **can** combine them_
 
-# 3.Lists
-## 3.1 Unordered
+## 1.3.Lists
+### 1.3.1 Unordered
 * Item 1
 * Item 2
   * Item 2a
   * Item 2b
-## 3.2 Ordered
+### 1.3.2 Ordered
 1. Item 1
 1. Item 2
 1. Item 3
    1. Item 3a
    1. Item 3b
-# 4.Images
+## 1.4.Images
 ![GitHub Logo](/images/logo.png)
 Format: ![Alt Text](www.baidu.com)
 
-# 5.Links
+## 1.5.Links
 http://github.com - automatic!
 [GitHub](http://github.com)
 
-# 6.Blockquotes
+## 1.6.Blockquotes
 As Kanye West said:
 
 > We're living the future so
 > the present is our past.
 
-# 7.Inline code
+## 1.7.Inline code
 I think you should use an
 `<addr>` element here instead.
+
+# 二、GitHub Flavored Markdown
+
+## 2.1.Syntax highlighting
+
+```javascript
+function fancyAlert(arg) {
+  if(arg) {
+    $.facebox({div:'#foo'})
+  }
+}
+```
+

@@ -57,9 +57,7 @@ TEST_F(MockEnvTest, FakeSleeping)
 --MockEnv::FakeSleepForMicroseconds
 
 
-5.比较PosixEnv and MockEnv
-
-Posix_env
+5.Posix_env函数列表 55个
 
 class PosixEnv : public Env {
 public:
@@ -121,7 +119,7 @@ public:
 }
 
 
-6.MockEnv
+6.MockEnv 函数列表 29个
 class MockEnv : public EnvWrapper {
  public:                              
   MockEnv(Env* base_env);                                     
@@ -156,9 +154,56 @@ class MockEnv : public EnvWrapper {
 
 }
 
+7.比较PosixEnv and MockEnv
 
 
 
 
 
 
+lass PosixEnv : public Env {
+public:
+	PosixEnv();
+	virtual ~PosixEnv()
+	SetFD_CLOEXEC()
+	OpenWritableFile()
+	ReopenWritableFile()
+	NewMemoryMappedFileBuffer()
+	NumFileLinks()
+	AreFilesSame()
+	Schedule()
+	UnSchedule()
+	StartThread()
+	WaitForJoin()
+	GetThreadPoolQueueLen()
+	GetThreadList()
+	gettid()
+	GetThreadID()
+	GetFreeSpace()
+	SleepForMicroseconds()
+	GetHostName()
+	GetAbsolutePath()
+	SetBackgroundThreads()
+	GetBackgroundThreads()
+	GetAbsolutePath()
+	SetBackgroundThreads()
+	GetBackgroundThreads()
+	SetAllowNonOwnerAccess()
+	IncBackgroundThreadsIfNeeded()
+	LowerThreadPoolIOPriority()
+	LowerThreadPoolCPUPriority()
+	TimeToString()
+	OptimizeForLogWrite()
+	OptimizeForManifestWrite()
+}
+
+
+class MockEnv : public EnvWrapper {
+ public:                              
+  MockEnv(Env* base_env);                                     
+  ~MockEnv();                                                                                                                                                                   
+  DeleteFileInternal()                                    
+  Truncate()
+  CorruptBuffer();
+  FakeSleepForMicroseconds();
+}

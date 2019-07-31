@@ -57,4 +57,108 @@ TEST_F(MockEnvTest, FakeSleeping)
 --MockEnv::FakeSleepForMicroseconds
 
 
-5.比较
+5.比较PosixEnv and MockEnv
+
+Posix_env
+
+class PosixEnv : public Env {
+public:
+	PosixEnv();
+	virtual ~PosixEnv()
+	SetFD_CLOEXEC()
+	NewSequentialFile()
+	NewRandomAccessFile()
+	OpenWritableFile()
+	NewWritableFile()
+	ReopenWritableFile()
+	ReuseWritableFile()
+	NewRandomRWFile()
+	NewMemoryMappedFileBuffer()
+	NewDirectory()
+	FileExists()
+	GetChildren()
+	DeleteFile()
+	CreateDir()
+	CreateDirIfMissing()
+	DeleteDir()
+	GetFileSize()
+	GetFileModificationTime()
+	RenameFile()
+	LinkFile()
+	NumFileLinks()
+	AreFilesSame()
+	LockFile()
+	UnlockFile()
+	Schedule()
+	UnSchedule()
+	StartThread()
+	WaitForJoin()
+	GetThreadPoolQueueLen()
+	GetTestDirectory()
+	GetThreadList()
+	gettid()
+	GetThreadID()
+	GetFreeSpace()
+	NewLogger()
+	NowMicros()
+	NowNanos()
+	SleepForMicroseconds()
+	GetHostName()
+	GetCurrentTime()
+	GetAbsolutePath()
+	SetBackgroundThreads()
+	GetBackgroundThreads()
+	GetAbsolutePath()
+	SetBackgroundThreads()
+	GetBackgroundThreads()
+	SetAllowNonOwnerAccess()
+	IncBackgroundThreadsIfNeeded()
+	LowerThreadPoolIOPriority()
+	LowerThreadPoolCPUPriority()
+	TimeToString()
+	OptimizeForLogWrite()
+	OptimizeForManifestWrite()
+}
+
+
+6.MockEnv
+class MockEnv : public EnvWrapper {
+ public:                              
+  MockEnv(Env* base_env);                                     
+  ~MockEnv();                 
+  NewSequentialFile()
+  NewRandomAccessFile()                            
+  NewRandomRWFile()                                  
+  ReuseWritableFile()
+  NewWritableFile()                            
+  NewDirectory()                                   
+  FileExists()                                    
+  GetChildren()                                  
+  DeleteFileInternal()                                    
+  DeleteFile()
+  Truncate()
+  CreateDir()
+  CreateDirIfMissing()
+  DeleteDir()
+  GetFileSize()
+  GetFileModificationTime()
+  RenameFile()
+  LinkFile()
+  NewLogger()
+  LockFile()
+  UnlockFile()
+  GetTestDirectory()
+  GetCurrentTime()
+  NowMicros()
+  NowNanos() 
+  CorruptBuffer();
+  FakeSleepForMicroseconds();
+
+}
+
+
+
+
+
+
+

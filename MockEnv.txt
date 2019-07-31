@@ -51,7 +51,10 @@ TEST_F(MockEnvTest, Corrupt)
 ----MockRandomAccessFile::Read
 ------MemFile::Read
 
+4.TEST_F(MockEnvTest, FakeSleeping)
+
+TEST_F(MockEnvTest, FakeSleeping)
+--MockEnv::FakeSleepForMicroseconds
 
 
-
-
+5.比较

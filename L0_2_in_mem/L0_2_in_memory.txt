@@ -11,4 +11,206 @@ DBImpl::CompactFilesImpl
 DBImpl::BackgroundCompaction 
 的db_options 的参数都来自 immutable_db_options_
 
-3.DBImpl::DBImpl
+3.3.
+
+TEST_F(MockEnvTest, Corrupt)
+--MockEnv::NewWritableFile
+----MemFile::MemFile
+----MockWritableFile
+--MockWritableFile::Append
+----MemFile::Append
+
+--MockEnv::NewRandomAccessFile
+----MockRandomAccessFile//此时，已经有了MemFile
+----MockRandomAccessFile::Read
+------MemFile::Read
+
+// Sync + corrupt => no change
+--MockWritableFile::Fsync
+----MockWritableFile::Sync
+------MemFile::Fsync
+--MockEnv::CorruptBuffer
+----MemFile::CorruptBuffer
+----MockRandomAccessFile::Read
+------MemFile::Read
+
+4.TEST_F(MockEnvTest, FakeSleeping)
+
+TEST_F(MockEnvTest, FakeSleeping)
+--MockEnv::FakeSleepForMicroseconds
+
+
+5.Posix_env函数列表 55个
+
+class PosixEnv : public Env {
+public:
+	PosixEnv();
+	virtual ~PosixEnv()
+	SetFD_CLOEXEC()
+	NewSequentialFile()
+	NewRandomAccessFile()
+	OpenWritableFile()
+	NewWritableFile()
+	ReopenWritableFile()
+	ReuseWritableFile()
+	NewRandomRWFile()
+	NewMemoryMappedFileBuffer()
+	NewDirectory()
+	FileExists()
+	GetChildren()
+	DeleteFile()
+	CreateDir()
+	CreateDirIfMissing()
+	DeleteDir()
+	GetFileSize()
+	GetFileModificationTime()
+	RenameFile()
+	LinkFile()
+	NumFileLinks()
+	AreFilesSame()
+	LockFile()
+	UnlockFile()
+	Schedule()
+	UnSchedule()
+	StartThread()
+	WaitForJoin()
+	GetThreadPoolQueueLen()
+	GetTestDirectory()
+	GetThreadList()
+	gettid()
+	GetThreadID()
+	GetFreeSpace()
+	NewLogger()
+	NowMicros()
+	NowNanos()
+	SleepForMicroseconds()
+	GetHostName()
+	GetCurrentTime()
+	GetAbsolutePath()
+	SetBackgroundThreads()
+	GetBackgroundThreads()
+	GetAbsolutePath()
+	SetBackgroundThreads()
+	GetBackgroundThreads()
+	SetAllowNonOwnerAccess()
+	IncBackgroundThreadsIfNeeded()
+	LowerThreadPoolIOPriority()
+	LowerThreadPoolCPUPriority()
+	TimeToString()
+	OptimizeForLogWrite()
+	OptimizeForManifestWrite()
+}
+
+
+6.MockEnv 函数列表 29个
+class MockEnv : public EnvWrapper {
+ public:                              
+  MockEnv(Env* base_env);                                     
+  ~MockEnv();                 
+  NewSequentialFile()
+  NewRandomAccessFile()                            
+  NewRandomRWFile()                                  
+  ReuseWritableFile()
+  NewWritableFile()                            
+  NewDirectory()                                   
+  FileExists()                                    
+  GetChildren()                                  
+  DeleteFileInternal()                                    
+  DeleteFile()
+  Truncate()
+  CreateDir()
+  CreateDirIfMissing()
+  DeleteDir()
+  GetFileSize()
+  GetFileModificationTime()
+  RenameFile()
+  LinkFile()
+  NewLogger()
+  LockFile()
+  UnlockFile()
+  GetTestDirectory()
+  GetCurrentTime()
+  NowMicros()
+  NowNanos() 
+  CorruptBuffer();
+  FakeSleepForMicroseconds();
+
+}
+
+7.比较PosixEnv and MockEnv
+
+lass PosixEnv : public Env {
+public:
+	PosixEnv();
+	virtual ~PosixEnv()
+	--SetFD_CLOEXEC()//内部使用
+	OpenWritableFile()//需要实现
+	ReopenWritableFile()//需要实现
+	NewMemoryMappedFileBuffer()
+	NumFileLinks()
+	AreFilesSame()
+	Schedule()
+	UnSchedule()
+	StartThread()
+	WaitForJoin()
+	GetThreadPoolQueueLen()
+	GetThreadList()
+	gettid()
+	GetThreadID()
+	GetFreeSpace()
+	SleepForMicroseconds()
+	GetHostName()
+	GetAbsolutePath()
+	SetBackgroundThreads()
+	GetBackgroundThreads()
+	GetAbsolutePath()
+	SetBackgroundThreads()
+	GetBackgroundThreads()
+	SetAllowNonOwnerAccess()
+	IncBackgroundThreadsIfNeeded()
+	LowerThreadPoolIOPriority()
+	LowerThreadPoolCPUPriority()
+	TimeToString()
+	OptimizeForLogWrite()
+	OptimizeForManifestWrite()
+}
+
+
+class MockEnv : public EnvWrapper {
+ public:                              
+  MockEnv(Env* base_env);                                     
+  ~MockEnv();                                                                                                                                                                   
+  DeleteFileInternal()                                    
+  Truncate()
+  CorruptBuffer();
+  FakeSleepForMicroseconds();
+}
+
+
+8.ReopenWritableFile
+
+ReopenWritableFile
+--OpenWritableFile
+
+
+class EnvWrapper : public Env 中实现了 ReopenWritableFile，调用 WritableFile->ReopenWritableFile
+但是MockWritableFile 没有ReopenWritableFile的接口
+
+
+9、TableFileName in filename.cc
+
+std::string TableFileName(const std::vector<DbPath>& db_paths, uint64_t number,
+                          uint32_t path_id) {
+  assert(number > 0); 
+  std::string path;
+  if (path_id >= db_paths.size()) {
+    path = db_paths.back().path;
+  } else {
+    path = db_paths[path_id].path;
+  }   
+  return MakeTableFileName(path, number);
+}  
+
+100.TODO
+--NewMemEnv
+--明天试试直接改名字

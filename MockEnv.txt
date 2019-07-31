@@ -1,0 +1,57 @@
+1.br
+br main
+br /home/chenhui/rocksdb/env/mock_env.cc:28
+
+
+2.
+Breakpoint 2, rocksdb::MemFile::MemFile (this=0x7ffff4891150, env=0x7ffff4827880, fn=..., _is_lock_file=false) at /home/chenhui/rocksdb/env/mock_env.cc:32
+32                  MurmurHash(fn.data(), static_cast<int>(fn.size()), 0))),
+(gdb) bt
+#0  rocksdb::MemFile::MemFile (this=0x7ffff4891150, env=0x7ffff4827880, fn=..., _is_lock_file=false) at /home/chenhui/rocksdb/env/mock_env.cc:32
+#1  0x00007ffff75e4985 in rocksdb::MockEnv::NewWritableFile (this=0x7ffff4827880, fname=..., result=0x7fffffffdbe0, env_options=...) at /home/chenhui/rocksdb/env/mock_env.cc:497
+#2  0x000000000044a661 in rocksdb::MockEnvTest_Corrupt_Test::TestBody (this=0x7ffff4815950) at /home/chenhui/rocksdb/env/mock_env_test.cc:33
+#3  0x0000000000473b35 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4815950, method=&virtual testing::Test::TestBody(), location=0x482863 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#4  0x000000000046e292 in testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4815950, method=&virtual testing::Test::TestBody(), location=0x482863 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#5  0x00000000004558c5 in testing::Test::Run (this=0x7ffff4815950) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3897
+#6  0x000000000045602a in testing::TestInfo::Run (this=0x7ffff484a180) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4072
+#7  0x000000000045663c in testing::TestCase::Run (this=0x7ffff4830380) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4190
+#8  0x000000000045cc72 in testing::internal::UnitTestImpl::RunAllTests (this=0x7ffff4848800) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:6062
+#9  0x00000000004748f1 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x45c9f4 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x483138 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#10 0x000000000046eff8 in testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x45c9f4 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x483138 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#11 0x000000000045ba1a in testing::UnitTest::Run (this=0x6a0d00 <testing::UnitTest::GetInstance()::instance>) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:5683
+#12 0x000000000044cbd0 in RUN_ALL_TESTS () at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest.h:20718
+#13 0x000000000044c677 in main (argc=1, argv=0x7fffffffe3f8) at /home/chenhui/rocksdb/env/mock_env_test.cc:84
+
+3.
+
+TEST_F(MockEnvTest, Corrupt)
+--MockEnv::NewWritableFile
+----MemFile::MemFile
+----MockWritableFile
+--MockWritableFile::Append
+----MemFile::Append
+
+--MockEnv::NewRandomAccessFile
+----MockRandomAccessFile//此时，已经有了MemFile
+----MockRandomAccessFile::Read
+------MemFile::Read
+
+// Sync + corrupt => no change
+--MockWritableFile::Fsync
+----MockWritableFile::Sync
+------MemFile::Fsync
+--MockEnv::CorruptBuffer
+----MemFile::CorruptBuffer
+----MockRandomAccessFile::Read
+------MemFile::Read
+
+
+
+
+

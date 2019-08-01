@@ -211,6 +211,39 @@ std::string TableFileName(const std::vector<DbPath>& db_paths, uint64_t number,
   return MakeTableFileName(path, number);
 }  
 
+
+10.打印语句
+ROCKS_LOG_HEADER
+ROCKS_LOG_INFO(immutable_db_options_.info_log, "Resuming DB");
+ 333       ROCKS_LOG_INFO(immutable_db_options_.info_log,
+ 334                      "DB resume requested but failed due to Flush failure [%s]",
+ 335                      s.ToString().c_str());
+ 
+ 522       ROCKS_LOG_WARN(
+ 523           immutable_db_options_.info_log,
+ 524           "Unable to Sync WAL file %s with error -- %s",
+ 525           LogFileName(immutable_db_options_.wal_dir, log_number).c_str(),
+ 526           s.ToString().c_str()); 
+ 
+ 505   struct LogReporter : public log::Reader::Reporter {
+ 506     Env* env;                                       
+ 507     Logger* info_log;                               
+ 508     const char* fname;                              
+ 509     Status* status;  // nullptr if immutable_db_options_.paranoid_checks==false
+ 510     virtual void Corruption(size_t bytes, const Status& s) override {
+ 511       ROCKS_LOG_WARN(info_log, "%s%s: dropping %d bytes; %s",
+ 512                      (this->status == nullptr ? "(ignoring error) " : ""),
+ 513                      fname, static_cast<int>(bytes), s.ToString().c_str());
+ 514       if (this->status != nullptr && this->status->ok()) {
+ 515         *this->status = s;
+ 516       }
+ 517     }
+ 518   }; 
+ 
+177       ROCKS_LOG_WARN(logger,  
+178                      "AllocateAligned fail to allocate huge TLB pages: %s",
+179                      strerror(errno));
+
 100.TODO
 --NewMemEnv
 --明天试试直接改名字

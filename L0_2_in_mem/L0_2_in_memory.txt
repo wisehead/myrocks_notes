@@ -244,6 +244,76 @@ ROCKS_LOG_INFO(immutable_db_options_.info_log, "Resuming DB");
 178                      "AllocateAligned fail to allocate huge TLB pages: %s",
 179                      strerror(errno));
 
+
+11.callers of TableFileName
+BuildTable//重要
+CompactionJob::Run
+CompactionJob::FinishCompactionOutputFile
+CompactionJob::OpenCompactionOutputFile
+DBImpl::VerifyChecksum
+DBImpl::CompactFilesImpl
+DBImpl::NotifyOnCompactionBegin
+DBImpl::NotifyOnCompactionCompleted
+ExternalSstFileIngestionJob::Prepare
+ExtractMetaData
+ScanTable
+TableCache::GetTableReader
+Version::GetTableProperties
+Version::GetPropertiesOfTablesInRange
+SstFileManagerImpl::OnCompactionCompletion
+SstFileManagerImpl::EnoughRoomForCompaction
+Version::GetPropertiesOfAllTables
+
+
+-------------.
+Version::GetPropertiesOfAllTables//可以获取level
+SstFileManagerImpl::EnoughRoomForCompaction
+
+BuildTable//可以获取level
+CompactionJob::Run()
+
+12.Version::GetPropertiesOfAllTables
+//可以获取level
+Version::GetPropertiesOfAllTables
+--
+
+13.SstFileManagerImpl::EnoughRoomForCompaction
+
+14.CompactionJob::Run
+ 687   TablePropertiesCollection tp;
+ 688   for (const auto& state : compact_->sub_compact_states) { 
+ 689     for (const auto& output : state.outputs) { 
+ 690       auto fn =
+ 691           TableFileName(state.compaction->immutable_cf_options()->cf_paths,
+ 692                         output.meta.fd.GetNumber(), output.meta.fd.GetPathId());
+ 693       tp[fn] = output.table_properties;
+ 694     }
+ 695   }  
+ 
+ 
+
+15.to be marked
+BuildTable//重要
+CompactionJob::Run
+CompactionJob::FinishCompactionOutputFile
+CompactionJob::OpenCompactionOutputFile
+DBImpl::VerifyChecksum
+DBImpl::CompactFilesImpl
+DBImpl::NotifyOnCompactionBegin
+DBImpl::NotifyOnCompactionCompleted
+ExternalSstFileIngestionJob::Prepare
+ExtractMetaData
+ScanTable
+TableCache::GetTableReader
+Version::GetTableProperties
+Version::GetPropertiesOfTablesInRange
+SstFileManagerImpl::OnCompactionCompletion
+SstFileManagerImpl::EnoughRoomForCompaction
+Version::GetPropertiesOfAllTables
+
+
+
+
 100.TODO
 --NewMemEnv
 --明天试试直接改名字

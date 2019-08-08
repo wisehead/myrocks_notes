@@ -312,6 +312,47 @@ SstFileManagerImpl::EnoughRoomForCompaction
 Version::GetPropertiesOfAllTables
 
 
+16.BuildTable
+//参数有level
+callers：
+DBImpl::WriteLevel0TableForRecovery
+FlushJob::WriteLevel0Table
+ConvertLogToTable
+
+17.CompactionJob::Run
+callers:
+DBImpl::CompactFilesImpl
+DBImpl::BackgroundCompaction
+
+18.CompactionJob::FinishCompactionOutputFile
+callers:
+CompactionJob::ProcessKeyValueCompaction
+
+
+19.CompactionJob::OpenCompactionOutputFile
+db/compaction_job.cc
+OpenCompactionOutputFile() 函数中：{
+  ...
+  std::string fname = TableFileName(sub_compact->compaction->immutable_cf_options()->cf_paths, file_number, sub_compact->compaction->output_path_id());
+  ...
+  Status s = NewWritableFile(env_, fname, &writable_file, env_options_);
+  ...
+}
+这个函数是创建compaction output level文件，可以通过sub_compact->compaction->output_level()，判断他输出到第几层。
+
+callers:
+CompactionJob::Run
+--CompactionJob::ProcessKeyValueCompaction
+
+20.DBImpl::VerifyChecksum
+可以从storage_info中获取level信息
+callers:
+StackableDB::VerifyChecksum
+
+没搞明白在哪用？？只是读信息，不会创建sstable
+
+21.
+
 
 
 100.TODO

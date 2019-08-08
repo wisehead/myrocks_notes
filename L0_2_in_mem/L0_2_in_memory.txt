@@ -351,9 +351,54 @@ StackableDB::VerifyChecksum
 
 没搞明白在哪用？？只是读信息，不会创建sstable
 
-21.
+21.DBImpl::CompactFilesImpl
+  if (output_file_names != nullptr) {
+    for (const auto newf : c->edit()->GetNewFiles()) {
+      (*output_file_names)
+          .push_back(TableFileName(c->immutable_cf_options()->cf_paths,
+                                   newf.second.fd.GetNumber(),
+                                   newf.second.fd.GetPathId()));
+    }
+  }  
+  
+输入参数output_level。
+
+22.DBImpl::NotifyOnCompactionBegin
+    for (size_t i = 0; i < c->num_input_levels(); ++i) {
+      for (const auto fmd : *c->inputs(i)) {
+        auto fn = TableFileName(c->immutable_cf_options()->cf_paths,
+                                fmd->fd.GetNumber(), fmd->fd.GetPathId());
+                                
+for循环中可以获取level
+
+caller：
+DBImpl::BackgroundCompaction
+
+23.DBImpl::NotifyOnCompactionCompleted
+
+    for (size_t i = 0; i < c->num_input_levels(); ++i) {
+      for (const auto fmd : *c->inputs(i)) {            
+        auto fn = TableFileName(c->immutable_cf_options()->cf_paths,
+                                fmd->fd.GetNumber(), fmd->fd.GetPathId());
 
 
+for循环中可以获取level
+
+caller：
+DBImpl::BackgroundCompaction
+
+24.ExternalSstFileIngestionJob::Prepare
+
+
+
+
+
+
+
+
+
+
+                                
 
 100.TODO
 --NewMemEnv

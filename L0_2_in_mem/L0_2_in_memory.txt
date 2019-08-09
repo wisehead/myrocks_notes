@@ -389,11 +389,24 @@ DBImpl::BackgroundCompaction
 
 24.ExternalSstFileIngestionJob::Prepare
 
+caller
 
+AddFile/rocksdb_ingest_external_file/rocksdb_ingest_external_file_cf
+--DBImpl::IngestExternalFile
+----ExternalSstFileIngestionJob::Prepare
+----ExternalSstFileIngestionJob::Run
+------ExternalSstFileIngestionJob::AssignLevelAndSeqnoForIngestedFile
+------ExternalSstFileIngestionJob::CheckLevelForIngestedBehindFile//可选分支
+--------ExternalSstFileIngestionJob::IngestedFileFitInLevel
+------edit_.AddFile(f.picked_level, f.fd.GetNumber(), f.fd.GetPathId(),//in version_edit.h
+                  f.fd.GetFileSize(), f.smallest_internal_key(),
+                  f.largest_internal_key(), f.assigned_seqno, f.assigned_seqno,
+                  false);
+--------new_files_.emplace_back(level, std::move(f));
 
+//结论：利用生成基数偶数的方法，判断放在不同的目录。写的时候根据level区分，读的时候根据需要区分位置，然后读取。
 
-
-
+25.ExtractMetaData
 
 
 

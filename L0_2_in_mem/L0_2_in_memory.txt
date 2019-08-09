@@ -319,16 +319,54 @@ DBImpl::WriteLevel0TableForRecovery
 FlushJob::WriteLevel0Table
 ConvertLogToTable
 
+
+  std::string fname = TableFileName(ioptions.cf_paths, meta->fd.GetNumber(),                                                                                                                   
+                                    meta->fd.GetPathId());
+
+
 17.CompactionJob::Run
 callers:
 DBImpl::CompactFilesImpl
 DBImpl::BackgroundCompaction
 
+
+  for (const auto& state : compact_->sub_compact_states) {
+    for (const auto& output : state.outputs) {
+      auto fn =
+          TableFileName(state.compaction->immutable_cf_options()->cf_paths,                                                                                                                    
+                        output.meta.fd.GetNumber(), output.meta.fd.GetPathId());
+      tp[fn] = output.table_properties;
+    }          
+  }
+  
+  
+  
 18.CompactionJob::FinishCompactionOutputFile
 callers:
 CompactionJob::ProcessKeyValueCompaction
 
+    // If there is nothing to output, no necessary to generate a sst file.
+    // This happens when the output level is bottom level, at the same time
+    // the sub_compact output nothing.
+    std::string fname =
+        TableFileName(sub_compact->compaction->immutable_cf_options()->cf_paths,                                                                                                               
+                      meta->fd.GetNumber(), meta->fd.GetPathId());
+                      
 
+
+  if (meta != nullptr) {
+    fname =
+        TableFileName(sub_compact->compaction->immutable_cf_options()->cf_paths,                                                                                                               
+                      meta->fd.GetNumber(), meta->fd.GetPathId());
+    output_fd = meta->fd;
+  }
+  
+  
+    auto fn =
+        TableFileName(sub_compact->compaction->immutable_cf_options()->cf_paths,
+                      meta->fd.GetNumber(), meta->fd.GetPathId());
+                      
+                                            
 19.CompactionJob::OpenCompactionOutputFile
 db/compaction_job.cc
 OpenCompactionOutputFile() 函数中：{
@@ -344,12 +382,39 @@ callers:
 CompactionJob::Run
 --CompactionJob::ProcessKeyValueCompaction
 
+
+  // no need to lock because VersionSet::next_file_number_ is atomic
+  uint64_t file_number = versions_->NewFileNumber();
+  std::string fname =
+      TableFileName(sub_compact->compaction->immutable_cf_options()->cf_paths,                                                                                                                 
+                    file_number, sub_compact->compaction->output_path_id());
+
+//之后再更新meta.fd 
+1506   SubcompactionState::Output out;
+1507   out.meta.fd =
+1508       FileDescriptor(file_number, sub_compact->compaction->output_path_id(), 0);
+1509   out.finished = false;
+
+
 20.DBImpl::VerifyChecksum
 可以从storage_info中获取level信息
 callers:
 StackableDB::VerifyChecksum
 
 没搞明白在哪用？？只是读信息，不会创建sstable
+
+
+3229     for (int i = 0; i < vstorage->num_non_empty_levels() && s.ok(); i++) {
+3230       for (size_t j = 0; j < vstorage->LevelFilesBrief(i).num_files && s.ok();
+3231            j++) {
+3232         const auto& fd = vstorage->LevelFilesBrief(i).files[j].fd;
+3233         std::string fname = TableFileName(cfd->ioptions()->cf_paths,
+3234                                           fd.GetNumber(), fd.GetPathId());
+3235         s = rocksdb::VerifySstFileChecksum(opts, env_options_, fname);
+3236       }  
+3237     } 
+
+
 
 21.DBImpl::CompactFilesImpl
   if (output_file_names != nullptr) {
@@ -363,29 +428,58 @@ StackableDB::VerifyChecksum
   
 输入参数output_level。
 
+
+ 993     for (const auto newf : c->edit()->GetNewFiles()) {
+ 994       (*output_file_names)
+ 995           .push_back(TableFileName(c->immutable_cf_options()->cf_paths,                                                                                                                   
+ 996                                    newf.second.fd.GetNumber(),
+ 997                                    newf.second.fd.GetPathId()));
+ 998     }    
+
 22.DBImpl::NotifyOnCompactionBegin
-    for (size_t i = 0; i < c->num_input_levels(); ++i) {
-      for (const auto fmd : *c->inputs(i)) {
-        auto fn = TableFileName(c->immutable_cf_options()->cf_paths,
-                                fmd->fd.GetNumber(), fmd->fd.GetPathId());
                                 
 for循环中可以获取level
 
 caller：
 DBImpl::BackgroundCompaction
 
-23.DBImpl::NotifyOnCompactionCompleted
 
-    for (size_t i = 0; i < c->num_input_levels(); ++i) {
-      for (const auto fmd : *c->inputs(i)) {            
-        auto fn = TableFileName(c->immutable_cf_options()->cf_paths,
-                                fmd->fd.GetNumber(), fmd->fd.GetPathId());
+1070     for (size_t i = 0; i < c->num_input_levels(); ++i) {                                                                                                                                  
+1071       for (const auto fmd : *c->inputs(i)) {
+1072         auto fn = TableFileName(c->immutable_cf_options()->cf_paths,
+1073                                 fmd->fd.GetNumber(), fmd->fd.GetPathId());
+1074         info.input_files.push_back(fn);
+
+
+1084     for (const auto newf : c->edit()->GetNewFiles()) {
+1085       info.output_files.push_back(TableFileName(
+1086           c->immutable_cf_options()->cf_paths, newf.second.fd.GetNumber(),
+1087           newf.second.fd.GetPathId()));
+1088     } 
+
+
+
+23.DBImpl::NotifyOnCompactionCompleted
 
 
 for循环中可以获取level
 
 caller：
 DBImpl::BackgroundCompaction
+
+1133     for (size_t i = 0; i < c->num_input_levels(); ++i) {
+1134       for (const auto fmd : *c->inputs(i)) {
+1135         auto fn = TableFileName(c->immutable_cf_options()->cf_paths,                                                                                                                      
+1136                                 fmd->fd.GetNumber(), fmd->fd.GetPathId());
+
+
+1147     for (const auto newf : c->edit()->GetNewFiles()) {
+1148       info.output_files.push_back(TableFileName(
+1149           c->immutable_cf_options()->cf_paths, newf.second.fd.GetNumber(),
+1150           newf.second.fd.GetPathId()));
+1151     }
+
+
 
 24.ExternalSstFileIngestionJob::Prepare
 
@@ -406,12 +500,61 @@ AddFile/rocksdb_ingest_external_file/rocksdb_ingest_external_file_cf
 
 //结论：利用生成基数偶数的方法，判断放在不同的目录。写的时候根据level区分，读的时候根据需要区分位置，然后读取。
 
+ 97     const std::string path_inside_db =
+ 98         TableFileName(cfd_->ioptions()->cf_paths, f.fd.GetNumber(),                                                                                                                        
+ 99                       f.fd.GetPathId()); 
+ 
+//这里只是准备工作？？？
+
 25.ExtractMetaData
+Repairer::Run
+--ExtractMetaData
 
 
+459         std::string fname = TableFileName(
+460             db_options_.db_paths, t.meta.fd.GetNumber(), t.meta.fd.GetPathId());
 
 
-                                
+26.ScanTable
+
+ExtractMetaData
+--ScanTable
+
+474     std::string fname = TableFileName(                                                                                                                                                     
+475         db_options_.db_paths, t->meta.fd.GetNumber(), t->meta.fd.GetPathId());
+
+            
+27.TableCache::GetTableReader
+100   std::string fname =
+101       TableFileName(ioptions_.cf_paths, fd.GetNumber(), fd.GetPathId());    
+102   std::unique_ptr<RandomAccessFile> file;        
+103   Status s = ioptions_.env->NewRandomAccessFile(fname, &file, env_options);            
+            
+            
+40.FileDescriptor
+// A copyable structure contains information needed to read data from an SST
+// file. It can contain a pointer to a table reader opened for the file, or
+// file number and size, which can be used to create a new table reader for it.
+// The behavior is undefined when a copied of the structure is used when the
+// file is not in any live version any more.
+struct FileDescriptor {
+  // Table reader in table_reader_handle
+  TableReader* table_reader;
+  uint64_t packed_number_and_path_id;
+  uint64_t file_size;  // File size in bytes
+  SequenceNumber smallest_seqno;  // The smallest seqno in this file
+  SequenceNumber largest_seqno;   // The largest seqno in this file
+  uint64_t GetNumber() const {
+    return packed_number_and_path_id & kFileNumberMask;
+  }
+  uint32_t GetPathId() const {
+    return static_cast<uint32_t>(
+        packed_number_and_path_id / (kFileNumberMask + 1));
+  }
+  uint64_t GetFileSize() const { return file_size; }
+};
+
+                    
 
 100.TODO
 --NewMemEnv

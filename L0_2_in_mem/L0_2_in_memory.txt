@@ -530,6 +530,45 @@ ExtractMetaData
 102   std::unique_ptr<RandomAccessFile> file;        
 103   Status s = ioptions_.env->NewRandomAccessFile(fname, &file, env_options);            
             
+28.Version::GetTableProperties
+            
+ 766     file_name =
+ 767       TableFileName(ioptions->cf_paths, file_meta->fd.GetNumber(),
+ 768                     file_meta->fd.GetPathId());
+ 
+29.Version::GetPropertiesOfTablesInRange   
+ 840         auto fname =
+ 841             TableFileName(cfd_->ioptions()->cf_paths,
+ 842                           file_meta->fd.GetNumber(), file_meta->fd.GetPathId());
+
+30.SstFileManagerImpl::OnCompactionCompletion
+ 92   for (auto& new_file : new_files) {
+ 93     auto fn = TableFileName(c->immutable_cf_options()->cf_paths,
+ 94                             new_file.second.fd.GetNumber(),
+ 95                             new_file.second.fd.GetPathId());
+ 
+31.SstFileManagerImpl::EnoughRoomForCompaction
+
+176     auto fn =
+177         TableFileName(cfd->ioptions()->cf_paths, inputs[0][0]->fd.GetNumber(),                                                                                                             
+178                       inputs[0][0]->fd.GetPathId());         
+            
+32.Version::GetPropertiesOfAllTables
+ 811   for (const auto& file_meta : storage_info_.files_[level]) {
+ 812     auto fname =
+ 813         TableFileName(cfd_->ioptions()->cf_paths, file_meta->fd.GetNumber(),
+ 814                       file_meta->fd.GetPathId());            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
             
 40.FileDescriptor
 // A copyable structure contains information needed to read data from an SST
@@ -554,7 +593,326 @@ struct FileDescriptor {
   uint64_t GetFileSize() const { return file_size; }
 };
 
-                    
+
+41.
+    //B_chenhui
+    if (meta->fd.is_in_memory)
+        fname = std::string("/ssd1/testRam") + fname;
+    //E_chenhui
+    fprintf(stderr, "xxxxxx:BuildTable():...fname:%s.\n", fname.c_str()); //chenhui
+    
+42.rocksdb::DB::Open
+(gdb) bt
+#0  rocksdb::BuildTable (dbname=..., env=0x7ffff4f82787 <vsscanf+103>, ioptions=..., mutable_cf_options=..., env_options=..., table_cache=0x7ffff488feb0, iter=0x7fffffffaf80, range_del_iters=..., meta=0x7fffffffac70, internal_comparator=..., 
+    int_tbl_prop_collector_factories=0x7ffff48dc640, column_family_id=0, column_family_name=..., snapshots=..., earliest_write_conflict_snapshot=72057594037927935, snapshot_checker=0x0, compression=<incomplete type>, compression_opts=..., 
+    paranoid_file_checks=228, internal_stats=0x7ffff4875300, reason=rocksdb::TableFileCreationReason::kRecovery, event_logger=0x7ffff48beef0, job_id=1, io_priority=rocksdb::Env::IO_HIGH, table_properties=0x0, level=-1, creation_time=1566538356, 
+    oldest_key_time=3, write_hint=rocksdb::Env::WLTH_NOT_SET) at /home/chenhui/rocksdb/db/builder.cc:82
+#1  0x00007ffff74c536c in rocksdb::DBImpl::WriteLevel0TableForRecovery (this=0x7ffff48be000, job_id=1, cfd=0x7ffff48dc600, mem=0x7ffff48ff000, edit=0x7ffff484b690) at /home/chenhui/rocksdb/db/db_impl_open.cc:1020
+#2  0x00007ffff74c42e9 in rocksdb::DBImpl::RecoverLogFiles (this=0x7ffff48be000, log_numbers=..., next_sequence=0x7fffffffc238, read_only=false) at /home/chenhui/rocksdb/db/db_impl_open.cc:872
+#3  0x00007ffff74c22ab in rocksdb::DBImpl::Recover (this=0x7ffff48be000, column_families=..., read_only=false, error_if_log_file_exist=false, error_if_data_exists_in_logs=false) at /home/chenhui/rocksdb/db/db_impl_open.cc:466
+#4  0x00007ffff74c60c2 in rocksdb::DBImpl::Open (db_options=..., dbname=..., column_families=..., handles=0x7fffffffd3b0, dbptr=0x7ffff4880240, seq_per_batch=false, batch_per_txn=true) at /home/chenhui/rocksdb/db/db_impl_open.cc:1151
+#5  0x00007ffff74c5a85 in rocksdb::DB::Open (db_options=..., dbname=..., column_families=..., handles=0x7fffffffd3b0, dbptr=0x7ffff4880240) at /home/chenhui/rocksdb/db/db_impl_open.cc:1086
+#6  0x00007ffff74c58e2 in rocksdb::DB::Open (options=..., dbname=..., dbptr=0x7ffff4880240) at /home/chenhui/rocksdb/db/db_impl_open.cc:1070
+#7  0x00000000005072d1 in rocksdb::DBTestBase::TryReopen (this=0x7ffff4880200, options=...) at /home/chenhui/rocksdb/db/db_test_util.cc:664
+#8  0x0000000000506c68 in rocksdb::DBTestBase::Reopen (this=0x7ffff4880200, options=...) at /home/chenhui/rocksdb/db/db_test_util.cc:618
+#9  0x00000000004c8af6 in rocksdb::DBBasicTest_ReadOnlyDB_Test::TestBody (this=0x7ffff4880200) at /home/chenhui/rocksdb/db/db_basic_test.cc:60
+#10 0x00000000005566a2 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4880200, method=&virtual testing::Test::TestBody(), location=0x56a3e3 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#11 0x000000000055133c in testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4880200, method=&virtual testing::Test::TestBody(), location=0x56a3e3 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#12 0x0000000000538d55 in testing::Test::Run (this=0x7ffff4880200) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3897
+#13 0x00000000005394ba in testing::TestInfo::Run (this=0x7ffff484a240) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4072
+#14 0x0000000000539acc in testing::TestCase::Run (this=0x7ffff4830380) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4190
+#15 0x0000000000540110 in testing::internal::UnitTestImpl::RunAllTests (this=0x7ffff4848800) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:6062
+#16 0x00000000005573c7 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#17 0x000000000055201e in testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#18 0x000000000053eeb8 in testing::UnitTest::Run (this=0x7af900 <testing::UnitTest::GetInstance()::instance>) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:5683
+#19 0x00000000004eea9f in RUN_ALL_TESTS () at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest.h:20718
+#20 0x00000000004e9e0c in main (argc=1, argv=0x7fffffffe3c8) at /home/chenhui/rocksdb/db/db_basic_test.cc:964
+
+
+43. Open, how to create the directory.  
+#0  rocksdb::DBImpl::Open (db_options=..., dbname=..., column_families=..., handles=0x7fffffffd2f0, dbptr=0x7ffff4880240, seq_per_batch=false, batch_per_txn=true) at /home/chenhui/rocksdb/db/db_impl_open.cc:1107
+#1  0x00007ffff74c5a85 in rocksdb::DB::Open (db_options=..., dbname=..., column_families=..., handles=0x7fffffffd2f0, dbptr=0x7ffff4880240) at /home/chenhui/rocksdb/db/db_impl_open.cc:1086
+#2  0x00007ffff74c58e2 in rocksdb::DB::Open (options=..., dbname=..., dbptr=0x7ffff4880240) at /home/chenhui/rocksdb/db/db_impl_open.cc:1070
+#3  0x00000000005072d1 in rocksdb::DBTestBase::TryReopen (this=0x7ffff4880200, options=...) at /home/chenhui/rocksdb/db/db_test_util.cc:664
+#4  0x0000000000506c68 in rocksdb::DBTestBase::Reopen (this=0x7ffff4880200, options=...) at /home/chenhui/rocksdb/db/db_test_util.cc:618
+#5  0x000000000050394a in rocksdb::DBTestBase::DBTestBase (this=0x7ffff4880200, path=...) at /home/chenhui/rocksdb/db/db_test_util.cc:77
+#6  0x00000000004ef19d in rocksdb::DBBasicTest::DBBasicTest (this=0x7ffff4880200) at /home/chenhui/rocksdb/db/db_basic_test.cc:21
+#7  0x00000000004ef26c in rocksdb::DBBasicTest_OpenWhenOpen_Test::DBBasicTest_OpenWhenOpen_Test (this=0x7ffff4880200) at /home/chenhui/rocksdb/db/db_basic_test.cc:24
+#8  0x0000000000502092 in testing::internal::TestFactoryImpl<rocksdb::DBBasicTest_OpenWhenOpen_Test>::CreateTest (this=0x7ffff4808010) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest.h:7987
+#9  0x0000000000556768 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::internal::TestFactoryBase, testing::Test*> (object=0x7ffff4808010, method=&virtual testing::internal::TestFactoryBase::CreateTest(), 
+    location=0x56a550 "the test fixture's constructor") at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#10 0x0000000000551598 in testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::TestFactoryBase, testing::Test*> (object=0x7ffff4808010, method=&virtual testing::internal::TestFactoryBase::CreateTest(), 
+    location=0x56a550 "the test fixture's constructor") at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#11 0x0000000000539487 in testing::TestInfo::Run (this=0x7ffff484a180) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4065
+#12 0x0000000000539acc in testing::TestCase::Run (this=0x7ffff4830380) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4190
+#13 0x0000000000540110 in testing::internal::UnitTestImpl::RunAllTests (this=0x7ffff4848800) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:6062
+#14 0x00000000005573c7 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#15 0x000000000055201e in testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#16 0x000000000053eeb8 in testing::UnitTest::Run (this=0x7af900 <testing::UnitTest::GetInstance()::instance>) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:5683
+#17 0x00000000004eea9f in RUN_ALL_TESTS () at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest.h:20718
+#18 0x00000000004e9e0c in main (argc=1, argv=0x7fffffffe3c8) at /home/chenhui/rocksdb/db/db_basic_test.cc:964
+   
+
+44.
+
+rocksdb::DB::Open//db_impl_open.cc:1070
+--rocksdb::DB::Open//db_impl_open.cc:1086
+----rocksdb::DBImpl::Open
+------rocksdb::EnvWrapper::CreateDirIfMissing
+--------rocksdb::(anonymous namespace)::PosixEnv::CreateDirIfMissing
+                     
+45.断点
+(gdb) info br
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000004e9def in main(int, char**) at /home/chenhui/rocksdb/db/db_basic_test.cc:962
+        breakpoint already hit 1 time
+2       breakpoint     keep y   <MULTIPLE>         
+2.1                         y     0x00007ffff7362270 <rocksdb::BuildTable(std::string const&, rocksdb::Env*, rocksdb::ImmutableCFOptions const&, rocksdb::MutableCFOptions const&, rocksdb::EnvOptions const&, rocksdb::TableCache*, rocksdb::InternalIteratorBase<rocksdb::Slice>*, std::vector<std::unique_ptr<rocksdb::FragmentedRangeTombstoneIterator, std::default_delete<rocksdb::FragmentedRangeTombstoneIterator> >, std::allocator<std::unique_ptr<rocksdb::FragmentedRangeTombstoneIterator, std::default_delete<rocksdb::FragmentedRangeTombstoneIterator> > > >, rocksdb::FileMetaData*, rocksdb::InternalKeyComparator const&, std::vector<std::unique_ptr<rocksdb::IntTblPropCollectorFactory, std::default_delete<rocksdb::IntTblPropCollectorFactory> >, std::allocator<std::unique_ptr<rocksdb::IntTblPropCollectorFactory, std::default_delete<rocksdb::IntTblPropCollectorFactory> > > > const*, unsigned int, std::string const&, std::vector<unsigned long, std::allocator<unsigned long> >, unsigned long, rocksdb::SnapshotChecker*, rocksdb::CompressionType, rocksdb::CompressionOptions const&, bool, rocksdb::InternalStats*, rocksdb::TableFileCreationReason, rocksdb::EventLogger*, int, rocksdb::Env::IOPriority, rocksdb::TableProperties*, int, unsigned long, unsigned long, rocksdb::Env::WriteLifeTimeHint)@plt>
+2.2                         y     0x00007ffff73beb06 in rocksdb::BuildTable(std::string const&, rocksdb::Env*, rocksdb::ImmutableCFOptions const&, rocksdb::MutableCFOptions const&, rocksdb::EnvOptions const&, rocksdb::TableCache*, rocksdb::InternalIteratorBase<rocksdb::Slice>*, std::vector<std::unique_ptr<rocksdb::FragmentedRangeTombstoneIterator, std::default_delete<rocksdb::FragmentedRangeTombstoneIterator> >, std::allocator<std::unique_ptr<rocksdb::FragmentedRangeTombstoneIterator, std::default_delete<rocksdb::FragmentedRangeTombstoneIterator> > > >, rocksdb::FileMetaData*, rocksdb::InternalKeyComparator const&, std::vector<std::unique_ptr<rocksdb::IntTblPropCollectorFactory, std::default_delete<rocksdb::IntTblPropCollectorFactory> >, std::allocator<std::unique_ptr<rocksdb::IntTblPropCollectorFactory, std::default_delete<rocksdb::IntTblPropCollectorFactory> > > > const*, unsigned int, std::string const&, std::vector<unsigned long, std::allocator<unsigned long> >, unsigned long, rocksdb::SnapshotChecker*, rocksdb::CompressionType, rocksdb::CompressionOptions const&, bool, rocksdb::InternalStats*, rocksdb::TableFileCreationReason, rocksdb::EventLogger*, int, rocksdb::Env::IOPriority, rocksdb::TableProperties*, int, unsigned long, unsigned long, rocksdb::Env::WriteLifeTimeHint) at /home/chenhui/rocksdb/db/builder.cc:83
+3       breakpoint     keep y   <MULTIPLE>         
+        breakpoint already hit 4 times
+3.1                         y     0x00000000004c6a50 <rocksdb::DB::Open(rocksdb::Options const&, std::string const&, rocksdb::DB**)@plt>
+3.2                         y     0x00000000004c6a80 <rocksdb::DB::Open(rocksdb::DBOptions const&, std::string const&, std::vector<rocksdb::ColumnFamilyDescriptor, std::allocator<rocksdb::ColumnFamilyDescriptor> > const&, std::vector<rocksdb::ColumnFamilyHandle*, std::allocator<rocksdb::ColumnFamilyHandle*> >*, rocksdb::DB**)@plt>
+3.3                         y     0x00007ffff733ce40 <rocksdb::DB::Open(rocksdb::Options const&, std::string const&, rocksdb::DB**)@plt>
+3.4                         y     0x00007ffff733f960 <rocksdb::DB::Open(rocksdb::DBOptions const&, std::string const&, std::vector<rocksdb::ColumnFamilyDescriptor, std::allocator<rocksdb::ColumnFamilyDescriptor> > const&, std::vector<rocksdb::ColumnFamilyHandle*, std::allocator<rocksdb::ColumnFamilyHandle*> >*, rocksdb::DB**)@plt>
+3.5                         y     0x00007ffff74c5812 in rocksdb::DB::Open(rocksdb::Options const&, std::string const&, rocksdb::DB**) at /home/chenhui/rocksdb/db/db_impl_open.cc:1064
+3.6                         y     0x00007ffff74c5a48 in rocksdb::DB::Open(rocksdb::DBOptions const&, std::string const&, std::vector<rocksdb::ColumnFamilyDescriptor, std::allocator<rocksdb::ColumnFamilyDescriptor> > const&, std::vector<rocksdb::ColumnFamilyHandle*, std::allocator<rocksdb::ColumnFamilyHandle*> >*, rocksdb::DB**) at /home/chenhui/rocksdb/db/db_impl_open.cc:1083
+4       breakpoint     keep y   0x00007ffff74c5812 in rocksdb::DB::Open(rocksdb::Options const&, std::string const&, rocksdb::DB**) at /home/chenhui/rocksdb/db/db_impl_open.cc:1063
+        breakpoint already hit 1 time
+        
+
+46.ReadOnlyReopen
+(gdb) bt
+#0  rocksdb::DBTestBase::ReadOnlyReopen (this=0x7ffff4880200, options=...) at /home/chenhui/rocksdb/db/db_test_util.cc:650
+#1  0x00000000004c8453 in rocksdb::DBBasicTest_ReadOnlyDB_Test::TestBody (this=0x7ffff4880200) at /home/chenhui/rocksdb/db/db_basic_test.cc:46
+#2  0x00000000005566a2 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4880200, method=&virtual testing::Test::TestBody(), location=0x56a3e3 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#3  0x000000000055133c in testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4880200, method=&virtual testing::Test::TestBody(), location=0x56a3e3 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#4  0x0000000000538d55 in testing::Test::Run (this=0x7ffff4880200) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3897
+#5  0x00000000005394ba in testing::TestInfo::Run (this=0x7ffff484a240) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4072
+#6  0x0000000000539acc in testing::TestCase::Run (this=0x7ffff4830380) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4190
+#7  0x0000000000540110 in testing::internal::UnitTestImpl::RunAllTests (this=0x7ffff4848800) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:6062
+#8  0x00000000005573c7 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#9  0x000000000055201e in testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#10 0x000000000053eeb8 in testing::UnitTest::Run (this=0x7af900 <testing::UnitTest::GetInstance()::instance>) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:5683
+#11 0x00000000004eea9f in RUN_ALL_TESTS () at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest.h:20718
+#12 0x00000000004e9e0c in main (argc=1, argv=0x7fffffffe3f8) at /home/chenhui/rocksdb/db/db_basic_test.cc:964
+
+47.rocksdb::DBTestBase::ReadOnlyReopen
+
+rocksdb::DBTestBase::ReadOnlyReopen
+--rocksdb::DB::OpenForReadOnly//db_impl_readonly.cc:144
+----rocksdb::DB::OpenForReadOnly//db_impl_readonly.cc:159
+------rocksdb::DBImpl::Recover
+--------rocksdb::VersionSet::Recover
+
+
+
+
+48.
+(gdb) info br
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   <PENDING>          rocksdb::CompactionJobStatsTest::ReadOnlyReopen
+2       breakpoint     keep y   0x00000000004e9def in main(int, char**) at /home/chenhui/rocksdb/db/db_basic_test.cc:962
+        breakpoint already hit 1 time
+3       breakpoint     keep y   0x000000000050723c in rocksdb::DBTestBase::ReadOnlyReopen(rocksdb::Options const&) at /home/chenhui/rocksdb/db/db_test_util.cc:650
+        breakpoint already hit 2 times
+        
+49.出问题的地方 
+
+DBImpl::CheckConsistency
+
+
+(gdb) n
+rocksdb::DBImpl::Recover (this=0x7ffff48be000, column_families=..., read_only=true, error_if_log_file_exist=false, error_if_data_exists_in_logs=false) at /home/chenhui/rocksdb/db/db_impl_open.cc:384
+384       if (immutable_db_options_.paranoid_checks && s.ok()) {
+(gdb) n
+385         s = CheckConsistency();
+(gdb) 
+387       if (s.ok() && !read_only) {
+(gdb) p s
+$15 = {code_ = rocksdb::Status::kCorruption, subcode_ = rocksdb::Status::kNone, sev_ = rocksdb::Status::kNoError, 
+  state_ = 0x7ffff480b320 "Can't access /000004.sst: IO error: while stat a file for size: /tmp/rocksdbtest-501//db_basic_test_8339083507285915616/000004.sst: No such file or directory\n"}
+  
+  
+(gdb) bt
+#0  rocksdb::DBImpl::Recover (this=0x7ffff48be000, column_families=..., read_only=true, error_if_log_file_exist=false, error_if_data_exists_in_logs=false) at /home/chenhui/rocksdb/db/db_impl_open.cc:387
+#1  0x00007ffff74d7b89 in rocksdb::DB::OpenForReadOnly (db_options=..., dbname=..., column_families=..., handles=0x7fffffffd430, dbptr=0x7ffff4880240, error_if_log_file_exist=false) at /home/chenhui/rocksdb/db/db_impl_readonly.cc:166
+#2  0x00007ffff74d7944 in rocksdb::DB::OpenForReadOnly (options=..., dbname=..., dbptr=0x7ffff4880240) at /home/chenhui/rocksdb/db/db_impl_readonly.cc:144
+#3  0x0000000000507262 in rocksdb::DBTestBase::ReadOnlyReopen (this=0x7ffff4880200, options=...) at /home/chenhui/rocksdb/db/db_test_util.cc:650
+#4  0x00000000004c8b52 in rocksdb::DBBasicTest_ReadOnlyDB_Test::TestBody (this=0x7ffff4880200) at /home/chenhui/rocksdb/db/db_basic_test.cc:64
+#5  0x00000000005566a2 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4880200, method=&virtual testing::Test::TestBody(), location=0x56a3e3 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#6  0x000000000055133c in testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4880200, method=&virtual testing::Test::TestBody(), location=0x56a3e3 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#7  0x0000000000538d55 in testing::Test::Run (this=0x7ffff4880200) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3897
+#8  0x00000000005394ba in testing::TestInfo::Run (this=0x7ffff484a240) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4072
+#9  0x0000000000539acc in testing::TestCase::Run (this=0x7ffff4830380) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4190
+#10 0x0000000000540110 in testing::internal::UnitTestImpl::RunAllTests (this=0x7ffff4848800) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:6062
+#11 0x00000000005573c7 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#12 0x000000000055201e in testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#13 0x000000000053eeb8 in testing::UnitTest::Run (this=0x7af900 <testing::UnitTest::GetInstance()::instance>) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:5683
+#14 0x00000000004eea9f in RUN_ALL_TESTS () at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest.h:20718
+#15 0x00000000004e9e0c in main (argc=1, argv=0x7fffffffe3f8) at /home/chenhui/rocksdb/db/db_basic_test.cc:964
+
+
+50.Version::GetTableProperties位置不对
+(gdb) bt
+(gdb) bt
+#0  0x00007ffff738fb90 in rocksdb::Version::GetTableProperties(std::shared_ptr<rocksdb::TableProperties const>*, rocksdb::FileMetaData const*, std::string const*) const@plt () from /home/chenhui/rocksdb/build/librocksdb.so.5
+#1  0x00007ffff7573b3e in rocksdb::Version::MaybeInitializeFileMetaData (this=0x7ffff4853000, file_meta=0x7ffff48dba00) at /home/chenhui/rocksdb/db/version_set.cc:1371
+#2  0x00007ffff7573f4d in rocksdb::Version::UpdateAccumulatedStats (this=0x7ffff4853000, update_stats=true) at /home/chenhui/rocksdb/db/version_set.cc:1432
+#3  0x00007ffff7573a37 in rocksdb::Version::PrepareApply (this=0x7ffff4853000, mutable_cf_options=..., update_stats=true) at /home/chenhui/rocksdb/db/version_set.cc:1355
+#4  0x00007ffff757b1ad in rocksdb::VersionSet::ProcessManifestWrites (this=0x7ffff489c3c0, writers=..., mu=0x7ffff48be498, db_directory=0x0, new_descriptor_log=true, new_cf_options=0x0) at /home/chenhui/rocksdb/db/version_set.cc:3073
+#5  0x00007ffff757d081 in rocksdb::VersionSet::LogAndApply (this=0x7ffff489c3c0, column_family_datas=..., mutable_cf_options_list=..., edit_lists=..., mu=0x7ffff48be498, db_directory=0x0, new_descriptor_log=false, new_cf_options=0x0)
+    at /home/chenhui/rocksdb/db/version_set.cc:3313
+#6  0x00007ffff742cb8e in rocksdb::VersionSet::LogAndApply (this=0x7ffff489c3c0, column_family_data=0x7ffff48dc600, mutable_cf_options=..., edit=0x7ffff484b690, mu=0x7ffff48be498, db_directory=0x0, new_descriptor_log=false, column_family_options=0x0)
+    at /home/chenhui/rocksdb/db/version_set.h:771
+#7  0x00007ffff74c4466 in rocksdb::DBImpl::RecoverLogFiles (this=0x7ffff48be000, log_numbers=..., next_sequence=0x7fffffffc238, read_only=false) at /home/chenhui/rocksdb/db/db_impl_open.cc:899
+#8  0x00007ffff74c22ab in rocksdb::DBImpl::Recover (this=0x7ffff48be000, column_families=..., read_only=false, error_if_log_file_exist=false, error_if_data_exists_in_logs=false) at /home/chenhui/rocksdb/db/db_impl_open.cc:466
+#9  0x00007ffff74c61ba in rocksdb::DBImpl::Open (db_options=..., dbname=..., column_families=..., handles=0x7fffffffd3e0, dbptr=0x7ffff4880240, seq_per_batch=false, batch_per_txn=true) at /home/chenhui/rocksdb/db/db_impl_open.cc:1158
+#10 0x00007ffff74c5a85 in rocksdb::DB::Open (db_options=..., dbname=..., column_families=..., handles=0x7fffffffd3e0, dbptr=0x7ffff4880240) at /home/chenhui/rocksdb/db/db_impl_open.cc:1086
+#11 0x00007ffff74c58e2 in rocksdb::DB::Open (options=..., dbname=..., dbptr=0x7ffff4880240) at /home/chenhui/rocksdb/db/db_impl_open.cc:1070
+#12 0x00000000005072d1 in rocksdb::DBTestBase::TryReopen (this=0x7ffff4880200, options=...) at /home/chenhui/rocksdb/db/db_test_util.cc:664
+#13 0x0000000000506c68 in rocksdb::DBTestBase::Reopen (this=0x7ffff4880200, options=...) at /home/chenhui/rocksdb/db/db_test_util.cc:618
+#14 0x00000000004c8af6 in rocksdb::DBBasicTest_ReadOnlyDB_Test::TestBody (this=0x7ffff4880200) at /home/chenhui/rocksdb/db/db_basic_test.cc:60
+#15 0x00000000005566a2 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4880200, method=&virtual testing::Test::TestBody(), location=0x56a3e3 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#16 0x000000000055133c in testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void> (object=0x7ffff4880200, method=&virtual testing::Test::TestBody(), location=0x56a3e3 "the test body")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#17 0x0000000000538d55 in testing::Test::Run (this=0x7ffff4880200) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3897
+#18 0x00000000005394ba in testing::TestInfo::Run (this=0x7ffff484a240) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4072
+#19 0x0000000000539acc in testing::TestCase::Run (this=0x7ffff4830380) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:4190
+#20 0x0000000000540110 in testing::internal::UnitTestImpl::RunAllTests (this=0x7ffff4848800) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:6062
+#21 0x00000000005573c7 in testing::internal::HandleSehExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3824
+#22 0x000000000055201e in testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool> (object=0x7ffff4848800, 
+    method=(bool (testing::internal::UnitTestImpl::*)(testing::internal::UnitTestImpl * const)) 0x53fe92 <testing::internal::UnitTestImpl::RunAllTests()>, location=0x56acb8 "auxiliary test code (environments or event listeners)")
+    at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:3860
+#23 0x000000000053eeb8 in testing::UnitTest::Run (this=0x7af900 <testing::UnitTest::GetInstance()::instance>) at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest-all.cc:5683
+#24 0x00000000004eea9f in RUN_ALL_TESTS () at /home/chenhui/rocksdb/third-party/gtest-1.7.0/fused-src/gtest/gtest.h:20718
+#25 0x00000000004e9e0c in main (argc=1, argv=0x7fffffffe3f8) at /home/chenhui/rocksdb/db/db_basic_test.cc:964
+
+
+
+DBImpl::Open
+--DBImpl::Recover
+----DBImpl::RecoverLogFiles
+------VersionSet::LogAndApply
+--------VersionSet::ProcessManifestWrites
+----------Version::PrepareApply
+------------Version::UpdateAccumulatedStats
+--------------Version::MaybeInitializeFileMetaData
+----------------Version::GetTableProperties
+------------------rocksdb::SpecialEnv::NewRandomAccessFile
+
+
+51.VersionEdit::EncodeTo
+
+
+VersionSet::ProcessManifestWrites
+--VersionSet::WriteSnapshot
+----VersionEdit::EncodeTo
+
+
+VersionSet::LogAndApply
+--VersionSet::ProcessManifestWrites
+----VersionEdit::EncodeTo
+
+
+52.VersionEdit::DecodeFrom
+
+DB::OpenForReadOnly
+--DBImpl::Recover
+----VersionSet::Recover
+------VersionEdit::DecodeFrom
+
+
+53.(gdb) info br
+(gdb) info br
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   <MULTIPLE>         
+        breakpoint already hit 4 times
+1.1                         y     0x00000000004c6ca0 <rocksdb::DB::OpenForReadOnly(rocksdb::Options const&, std::string const&, rocksdb::DB**, bool)@plt>
+1.2                         y     0x00007ffff73515d0 <rocksdb::DB::OpenForReadOnly(rocksdb::Options const&, std::string const&, rocksdb::DB**, bool)@plt>
+1.3                         y     0x00007ffff7352a90 <rocksdb::DB::OpenForReadOnly(rocksdb::DBOptions const&, std::string const&, std::vector<rocksdb::ColumnFamilyDescriptor, std::allocator<rocksdb::ColumnFamilyDescriptor> > const&, std::vector<rocksdb::ColumnFamilyHandle*, std::allocator<rocksdb::ColumnFamilyHandle*> >*, rocksdb::DB**, bool)@plt>
+1.4                         y     0x00007ffff74d77eb in rocksdb::DB::OpenForReadOnly(rocksdb::Options const&, std::string const&, rocksdb::DB**, bool) at /home/chenhui/rocksdb/db/db_impl_readonly.cc:128
+1.5                         y     0x00007ffff74d7ae9 in rocksdb::DB::OpenForReadOnly(rocksdb::DBOptions const&, std::string const&, std::vector<rocksdb::ColumnFamilyDescriptor, std::allocator<rocksdb::ColumnFamilyDescriptor> > const&, std::vector<rocksdb::ColumnFamilyHandle*, std::allocator<rocksdb::ColumnFamilyHandle*> >*, rocksdb::DB**, bool) at /home/chenhui/rocksdb/db/db_impl_readonly.cc:159
+2       breakpoint     keep y   <MULTIPLE>         
+        breakpoint already hit 2 times
+2.1                         y     0x00007ffff738fb90 <rocksdb::Version::GetTableProperties(std::shared_ptr<rocksdb::TableProperties const>*, rocksdb::FileMetaData const*, std::string const*) const@plt>
+2.2                         y     0x00007ffff756faa3 in rocksdb::Version::GetTableProperties(std::shared_ptr<rocksdb::TableProperties const>*, rocksdb::FileMetaData const*, std::string const*) const at /home/chenhui/rocksdb/db/version_set.cc:744
+3       breakpoint     keep y   <MULTIPLE>         
+        breakpoint already hit 10 times
+3.1                         y     0x00007ffff73aa630 <rocksdb::VersionEdit::EncodeTo(std::string*) const@plt>
+3.2                         y     0x00007ffff7569efe in rocksdb::VersionEdit::EncodeTo(std::string*) const at /home/chenhui/rocksdb/db/version_edit.cc:93
+4       breakpoint     keep y   <MULTIPLE>         
+        breakpoint already hit 8 times
+4.1                         y     0x00007ffff7387db0 <rocksdb::VersionEdit::DecodeFrom(rocksdb::Slice const&)@plt>
+4.2                         y     0x00007ffff756ab11 in rocksdb::VersionEdit::DecodeFrom(rocksdb::Slice const&) at /home/chenhui/rocksdb/db/version_edit.cc:311
+
+
+rocksdb::DB::OpenForReadOnly 
+rocksdb::Version::GetTableProperties
+rocksdb::VersionEdit::EncodeTo
+rocksdb::VersionEdit::DecodeFrom
+rocksdb::BuildTable     
+rocksdb::DBImpl::CheckConsistency  
+        
+54.fd of BuildTable
+
+DBImpl::RecoverLogFiles
+--DBImpl::WriteLevel0TableForRecovery
+----BuildTable
+----VersionEdit::AddFile        
+        
+        
+55.读写混合
+--准备数据
+./db_bench --num=102400000 --num_column_families=1 --use_existing_db=0 --batch_size=10 --benchmarks='fillseq' --sync=0 --num_levels=7 --key_size=16 --value_size=256 --compression_type=none --cache_size=17179869184 --bytes_per_sync=524288 --wal_bytes_per_sy
+nc=524288 --max_bytes_for_level_multiplier=10 --use_direct_io_for_flush_and_compaction=false --max_background_compactions=8 --level0_stop_writes_trigger=92 --write_buffer_size=33554432 --target_file_size_base=33554432 --target_file_size_multiplier=2 --max_
+bytes_for_level_base=268435456 --level0_file_num_compaction_trigger=4 --subcompactions=2 --level0_slowdown_writes_trigger=24 --max_write_buffer_number=64 --block_size=16384 --max_background_flushes=32 --enable_pipelined_write=true --allow_concurrent_memtab
+le_write=true --disable_auto_compactions=false --memtable_use_huge_page=true --memtablerep=skiplist --db=/home/pmem1/rocksdbpath/rdb/db --wal_dir=/home/pmem1/rocksdbpath/rdb/wal --benchmark_write_rate_limit=0 --soft_pending_compaction_bytes_limit=137438953
+472 --hard_pending_compaction_bytes_limit=274877906944 --statistics=1 --stats_per_interval=1 --cache_numshardbits=6 --compression_max_dict_bytes=0 --level_compaction_dynamic_level_bytes=true --stats_interval_seconds=10 --cache_index_and_filter_blocks=1 --p
+in_l0_filter_and_index_blocks_in_cache=0 --rate_limit_delay_max_milliseconds=1000000 --verify_checksum=1 --histogram=1 --compaction_pri=3 --bloom_bits=10 --open_files=-1 --use_adaptive_mutex=true --enable_write_thread_adaptive_yield=true --delayed_write_ra
+te=2000554432 --compaction_readahead_size=0 --min_write_buffer_number_to_merge=4 --seed=1539069512 --max_compaction_bytes=1073741824 --disable_wal=0 --max_total_wal_size=4294967296 2>&1 | tee -a /home/chenhui/rocksdbpath/log/tmp/benchmark.fill.log
+ 
+ 
+--随机写，读写比（1：99）
+./db_bench --num=50480000 --readwritepercent=1 --num_column_families=1 --use_existing_db=1 --threads=32 --batch_size=1000 --benchmarks='readrandomwriterandom' --sync=0 --num_levels=7 --key_size=16 --value_size=256 --compression_type=none --cache_size=17179
+869184 --bytes_per_sync=524288 --wal_bytes_per_sync=524288 --max_bytes_for_level_multiplier=10 --use_direct_io_for_flush_and_compaction=false --max_background_compactions=8 --level0_stop_writes_trigger=92 --write_buffer_size=33554432 --target_file_size_bas
+e=33554432 --target_file_size_multiplier=2 --max_bytes_for_level_base=268435456 --level0_file_num_compaction_trigger=4 --subcompactions=2 --level0_slowdown_writes_trigger=24 --max_write_buffer_number=64 --block_size=16384 --max_background_flushes=32 --enab
+le_pipelined_write=true --allow_concurrent_memtable_write=true --disable_auto_compactions=false --memtable_use_huge_page=true --memtablerep=skiplist --db=/home/pmem1/rocksdbpath/rdb/db --wal_dir=/home/pmem1/rocksdbpath/rdb/wal --benchmark_write_rate_limit=
+0 --soft_pending_compaction_bytes_limit=137438953472 --hard_pending_compaction_bytes_limit=274877906944 --statistics=1 --stats_per_interval=1 --cache_numshardbits=6 --compression_max_dict_bytes=0 --level_compaction_dynamic_level_bytes=true --stats_interval
+_seconds=10 --cache_index_and_filter_blocks=1 --pin_l0_filter_and_index_blocks_in_cache=0 --rate_limit_delay_max_milliseconds=1000000 --verify_checksum=1 --histogram=1 --compaction_pri=3 --bloom_bits=10 --open_files=-1 --use_adaptive_mutex=true --enable_wr
+ite_thread_adaptive_yield=true --delayed_write_rate=2000554432 --compaction_readahead_size=0 --min_write_buffer_number_to_merge=4 --seed=1539069512 --max_compaction_bytes=1073741824 --disable_wal=0 --max_total_wal_size=4294967296 2>&1 | tee -a /home/pmem1/
+rocksdbpath/log/tmp/benchmark.fill.log
+
+56.
+#ifndef NDEBUG                                                                                                                                                                                                                                              
+#endif  // !NDEBUG  
+
+        
 
 100.TODO
 --NewMemEnv

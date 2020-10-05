@@ -1,0 +1,26 @@
+
+# 1 WAL
+
+WAL文件由一堆变长的record组成，而每个record是由kBlockSize(32k)来分组，比如某一个record大于kBlockSize的话，他就会被切分为多个record（通过type来判断)。
+
+```java
+     +-----+-----------+--+----+----------+------+-- ... ----+
+File | r0  |      r1   |P | r2 |    r3    |  r4  |           |
+     +-----+-----------+--+----+----------+------+-- ... ----+
+     |<--- kBlockSize --->|<-- kBlockSize ------>|
+ rn = variable size records
+ P = Padding
+```
+
+【**record的格式**】如下
+
+```java
+       +---------+-----------+-----------+--- ... ---+
+Record |CRC (4B) | Size (2B) | Type (1B) | Payload   |
+       +---------+-----------+-----------+--- ... ---+
+CRC = 32bit hash computed over the payload using CRC
+Size = Length of the payload data
+Type = Type of record (kZeroType, kFullType, kFirstType, kLastType, kMiddleType )
+       The type is used to group a bunch of records together to represent blocks that are larger than kBlockSize
+Payload = Byte stream as long as specified by the payload size
+```

@@ -1,5 +1,3 @@
-# [RocksDB 原理介绍：读+锁+事务]
-
 # 2 锁
 
 ## 2.1 InnoBD 中的锁
@@ -36,19 +34,23 @@
     1.  幻读针对另一个 session 的 insert 操作，不可重复读则针对于另一个 session 的 delete/update 操作。MySQL 中，默认为 RR，select 是读取不到另一个 session 的 insert 的，但是 update/delete 却能更新另一个 session 的 insert，出现了幻读，但是满足定义。
     2.  根本原因是 MySQL 的 update/delete 会生成一个新的 lsn，通过 mvcc 判断，大于另一个 session 的事务的 lsn，满足可见性要求，因此出现幻读。
     3.  gap lock 的目的是实现 RR 的隔离级别，解决不可重复读的问题。Innodb 的实现方式，一定程度上避免了幻读，但无法彻底解决。update 能够更新其他 session 的写入。  
-        ![](assets/1599734854-6d0552a02407e8e35223501ba3d6345e.png)
+        ![](assets/1601900301-6d0552a02407e8e35223501ba3d6345e.png)
 3.  Next-key lock：行锁加间隙锁，即 Record lock + Gap lock  
      
 
 具体情况见下表：
 
-![](assets/1599734854-fdc1ca0cc049d7b1250ec0503aba58f2.png)
+![](assets/1601900301-fdc1ca0cc049d7b1250ec0503aba58f2.png)
 
-![](assets/1599734854-0ed43024a0919cc9fa07884732981e9f.png)
+![](assets/1601900301-0ed43024a0919cc9fa07884732981e9f.png)
 
-![](assets/1599734854-bdc36cdd5f142f117c08227fd7fa7e7e.png)
+![](assets/1601900301-bdc36cdd5f142f117c08227fd7fa7e7e.png)
 
-<table class="confluenceTable"><colgroup><col><col><col></colgroup><tbody><tr><td class="confluenceTd">&nbsp;</td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">t4 无主键，id2 辅助索引</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">t5 id 为主键，id2 辅助索引</span></p></td></tr><tr><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">for update id=5</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">任何位置都无法插入</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">升级为</span><span style="color: rgb(223,64,42);">表锁</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">优化为 </span><span style="color: rgb(223,64,42);">record lock</span><span style="color: rgb(51,51,51);">，任何位置可以插入</span></p></td></tr><tr><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">for update id2=5</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(0,0,0);">id2=5 加 record lock</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">id2=4/6 无法插入</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">索引记录前后加 gap lock</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(0,0,0);">id2=5 加 record lock</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">id2=4/6 无法插入</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">索引记录前后加 gap lock</span></p></td></tr></tbody></table>
+  
+
+<table class="wrapped confluenceTable"><colgroup><col><col><col></colgroup><tbody><tr><td class="confluenceTd"><br></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">t4 无主键，id2 辅助索引</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">t5 id 为主键，id2 辅助索引</span></p></td></tr><tr><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">select for update id=5</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">任何位置都无法插入</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">升级为</span><span style="color: rgb(223,64,42);">表锁</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);">优化为 </span><span style="color: rgb(223,64,42);">record lock</span><span style="color: rgb(51,51,51);">，任何位置可以插入</span></p></td></tr><tr><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(51,51,51);"><span>select </span>for update id2=5</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(0,0,0);">id2=5 加 record lock</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">id2=4/6 无法插入</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">索引记录前后加 gap lock</span></p></td><td class="confluenceTd"><p class="table-cell-line"><span style="color: rgb(0,0,0);">id2=5 加 record lock</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">id2=4/6 无法插入</span></p><p class="table-cell-line"><span style="color: rgb(51,51,51);">索引记录前后加 gap lock</span></p></td></tr></tbody></table>
+
+  
 
 ## 2.2 RockDB 的锁
 
@@ -63,11 +65,13 @@
 
 InnoDB 中写操作会加 Next-key lock，阻塞一定范围内其他事务的写操作。而 RocksDB 不支持 gap lock，则会导致下图中的问题。
 
-![](assets/1599734854-ab2d832e26f095bc9f3a2f2d166f6f26.png)
+![](assets/1601900301-ab2d832e26f095bc9f3a2f2d166f6f26.png)
 
 *   上图的两条 SQL 可能的执行顺序如下：
 
-![](assets/1599734854-07954a83df2ed5dc425295a5c1877caa.png)
+![](assets/1601900301-07954a83df2ed5dc425295a5c1877caa.png)
+
+  
 
 因此，必须使用 RBR（Row Based Binary Logging），即行模式的复制，binlog 中记录的是一行数据的状态。
 
@@ -140,7 +144,7 @@ X/Open DTP模型包括：应用程序（AP）、事务管理器（TM）、资源
 
 通信资源管理器：指的是消息中间件。
 
-![](assets/1599734854-1b23341a0ea959e27f487265ba5d5708.png)
+![](assets/1601900301-1b23341a0ea959e27f487265ba5d5708.png)
 
 MySQL 中分为【内部 XA（隐式 XA）】 与 【外部 XA（显式 XA）】
 
@@ -182,6 +186,3 @@ Commit 与 Rollback用来标识 事务 xid 的最终状态。
 #### 3.2.5.2 兼容性
 
 需要考虑向下兼容的问题，旧版本的 rocksdb 无法识别2PC 的新增操作类型，将导致无法使用 WAL 恢复数据。RocksDB 可以简单跳过 prepare 等无法识别的标记。
-
-
-
